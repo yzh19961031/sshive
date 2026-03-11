@@ -1,0 +1,84 @@
+<h2>整体视觉风格</h2>
+<p class="subtitle">选择一个最符合你期望的设计方向，这将决定配色、字体和整体氛围</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="dark-pro" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d1117;padding:16px;font-family:monospace;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ff5f57"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#febc2e"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#28c840"></div>
+        <span style="color:#8b949e;font-size:11px;margin-left:8px">192.168.1.100 — root@prod-server</span>
+      </div>
+      <div style="background:#161b22;border-radius:6px;padding:12px;">
+        <div style="color:#58a6ff;font-size:12px">root@prod-server:~# <span style="color:#e6edf3">ls -la /etc</span></div>
+        <div style="color:#3fb950;font-size:11px;margin-top:4px">total 248</div>
+        <div style="color:#e6edf3;font-size:11px">drwxr-xr-x  1 root root  4096 Mar 10 09:23 nginx</div>
+        <div style="color:#e6edf3;font-size:11px">drwxr-xr-x  1 root root  2048 Mar  8 14:11 ssl</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <div style="background:#1f6feb;color:#fff;font-size:10px;padding:4px 10px;border-radius:4px">主机列表</div>
+        <div style="background:#21262d;color:#8b949e;font-size:10px;padding:4px 10px;border-radius:4px">审计日志</div>
+        <div style="background:#21262d;color:#8b949e;font-size:10px;padding:4px 10px;border-radius:4px">文件管理</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>暗黑专业风</h3>
+      <p>GitHub Dark 风格，深色背景 + 蓝色主色调。专业感强，眼睛友好，适合长时间使用。运维工具的经典选择。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="cyber-neon" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#070b14;padding:16px;font-family:monospace;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ff5f57"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#febc2e"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#28c840"></div>
+        <span style="color:#4fc3f7;font-size:11px;margin-left:8px;opacity:0.7">192.168.1.100 — root@prod-server</span>
+      </div>
+      <div style="background:#0a0f1e;border:1px solid #00e5ff22;border-radius:6px;padding:12px;">
+        <div style="color:#00e5ff;font-size:12px">root@prod-server:~# <span style="color:#e0f7fa">ls -la /etc</span></div>
+        <div style="color:#69ff47;font-size:11px;margin-top:4px">total 248</div>
+        <div style="color:#b2ebf2;font-size:11px">drwxr-xr-x  1 root root  4096 Mar 10 09:23 nginx</div>
+        <div style="color:#b2ebf2;font-size:11px">drwxr-xr-x  1 root root  2048 Mar  8 14:11 ssl</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <div style="background:linear-gradient(135deg,#00e5ff,#00b0ff);color:#000;font-size:10px;padding:4px 10px;border-radius:4px;font-weight:600">主机列表</div>
+        <div style="background:#0a0f1e;color:#4fc3f7;border:1px solid #00e5ff33;font-size:10px;padding:4px 10px;border-radius:4px">审计日志</div>
+        <div style="background:#0a0f1e;color:#4fc3f7;border:1px solid #00e5ff33;font-size:10px;padding:4px 10px;border-radius:4px">文件管理</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>赛博霓虹风</h3>
+      <p>极深黑底 + 青色/霓虹蓝发光效果。科技感十足，视觉冲击力强。适合追求个性化的平台。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="light-clean" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:16px;font-family:monospace;border-bottom:1px solid #e2e8f0;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ff5f57"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#febc2e"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#28c840"></div>
+        <span style="color:#64748b;font-size:11px;margin-left:8px">192.168.1.100 — root@prod-server</span>
+      </div>
+      <div style="background:#1e293b;border-radius:6px;padding:12px;">
+        <div style="color:#38bdf8;font-size:12px">root@prod-server:~# <span style="color:#e2e8f0">ls -la /etc</span></div>
+        <div style="color:#4ade80;font-size:11px;margin-top:4px">total 248</div>
+        <div style="color:#cbd5e1;font-size:11px">drwxr-xr-x  1 root root  4096 Mar 10 nginx</div>
+        <div style="color:#cbd5e1;font-size:11px">drwxr-xr-x  1 root root  2048 Mar  8 ssl</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <div style="background:#6366f1;color:#fff;font-size:10px;padding:4px 10px;border-radius:6px">主机列表</div>
+        <div style="background:#fff;color:#475569;border:1px solid #e2e8f0;font-size:10px;padding:4px 10px;border-radius:6px">审计日志</div>
+        <div style="background:#fff;color:#475569;border:1px solid #e2e8f0;font-size:10px;padding:4px 10px;border-radius:6px">文件管理</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>浅色简约风</h3>
+      <p>白色/浅灰背景 + 紫色主色调，Terminal 区域仍保持深色。企业感强，适合日间办公环境，界面清爽易读。</p>
+    </div>
+  </div>
+
+</div>

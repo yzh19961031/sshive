@@ -1,0 +1,155 @@
+<h2>主机列表页设计</h2>
+<p class="subtitle">用户登录后看到的第一个页面，选择展示方式</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="card-grid" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d1117;padding:0;overflow:hidden;height:220px;display:flex;">
+      <div style="width:44px;background:#010409;border-right:1px solid #21262d;flex-shrink:0;"></div>
+      <div style="flex:1;padding:12px;overflow:hidden;">
+        <div style="display:flex;align-items:center;margin-bottom:10px;gap:8px;">
+          <span style="color:#e6edf3;font-size:11px;font-weight:600;">主机列表</span>
+          <div style="background:#21262d;border-radius:4px;padding:2px 8px;font-size:9px;color:#8b949e;display:flex;align-items:center;gap:4px;">🔍 搜索</div>
+          <div style="margin-left:auto;background:#1f6feb;color:#fff;font-size:9px;padding:3px 8px;border-radius:4px;">+ 添加主机</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px;">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+              <div style="width:6px;height:6px;border-radius:50%;background:#3fb950;flex-shrink:0;"></div>
+              <span style="color:#e6edf3;font-size:10px;font-weight:500;">prod-web-01</span>
+            </div>
+            <div style="color:#8b949e;font-size:9px;">192.168.1.10:22</div>
+            <div style="color:#8b949e;font-size:9px;">root · Linux</div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <div style="background:#1f6feb22;color:#58a6ff;font-size:8px;padding:2px 6px;border-radius:3px;">SSH</div>
+              <div style="background:#1f6feb22;color:#58a6ff;font-size:8px;padding:2px 6px;border-radius:3px;">SFTP</div>
+            </div>
+          </div>
+          <div style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px;">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+              <div style="width:6px;height:6px;border-radius:50%;background:#3fb950;flex-shrink:0;"></div>
+              <span style="color:#e6edf3;font-size:10px;font-weight:500;">prod-db-01</span>
+            </div>
+            <div style="color:#8b949e;font-size:9px;">192.168.1.20:22</div>
+            <div style="color:#8b949e;font-size:9px;">root · Linux</div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <div style="background:#1f6feb22;color:#58a6ff;font-size:8px;padding:2px 6px;border-radius:3px;">SSH</div>
+              <div style="background:#1f6feb22;color:#58a6ff;font-size:8px;padding:2px 6px;border-radius:3px;">SFTP</div>
+            </div>
+          </div>
+          <div style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px;">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+              <div style="width:6px;height:6px;border-radius:50%;background:#f85149;flex-shrink:0;"></div>
+              <span style="color:#e6edf3;font-size:10px;font-weight:500;">staging-01</span>
+            </div>
+            <div style="color:#8b949e;font-size:9px;">10.0.0.5:22</div>
+            <div style="color:#8b949e;font-size:9px;">deploy · Linux</div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <div style="background:#1f6feb22;color:#58a6ff;font-size:8px;padding:2px 6px;border-radius:3px;">SSH</div>
+            </div>
+          </div>
+          <div style="background:#161b22;border:1px solid #21262d;border-radius:6px;padding:8px;display:flex;align-items:center;justify-content:center;opacity:0.4;">
+            <span style="color:#8b949e;font-size:18px;">+</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>卡片网格</h3>
+      <p>每台主机一张卡片，显示状态、IP、用户、可用操作。视觉丰富，主机数量不多时体验最好。<strong>推荐</strong></p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="table" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d1117;padding:0;overflow:hidden;height:220px;display:flex;">
+      <div style="width:44px;background:#010409;border-right:1px solid #21262d;flex-shrink:0;"></div>
+      <div style="flex:1;padding:12px;overflow:hidden;">
+        <div style="display:flex;align-items:center;margin-bottom:10px;gap:8px;">
+          <span style="color:#e6edf3;font-size:11px;font-weight:600;">主机列表</span>
+          <div style="margin-left:auto;background:#1f6feb;color:#fff;font-size:9px;padding:3px 8px;border-radius:4px;">+ 添加</div>
+        </div>
+        <div style="background:#161b22;border-radius:6px;overflow:hidden;border:1px solid #21262d;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 60px 50px;padding:5px 8px;background:#21262d;gap:6px;">
+            <span style="color:#8b949e;font-size:9px;">主机名</span>
+            <span style="color:#8b949e;font-size:9px;">IP地址</span>
+            <span style="color:#8b949e;font-size:9px;">状态</span>
+            <span style="color:#8b949e;font-size:9px;">操作</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 60px 50px;padding:6px 8px;border-top:1px solid #21262d;gap:6px;align-items:center;">
+            <span style="color:#e6edf3;font-size:9px;">prod-web-01</span>
+            <span style="color:#8b949e;font-size:9px;">192.168.1.10</span>
+            <div style="display:flex;align-items:center;gap:3px;"><div style="width:5px;height:5px;border-radius:50%;background:#3fb950"></div><span style="color:#3fb950;font-size:8px;">在线</span></div>
+            <span style="color:#58a6ff;font-size:9px;">连接</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 60px 50px;padding:6px 8px;border-top:1px solid #21262d;gap:6px;align-items:center;">
+            <span style="color:#e6edf3;font-size:9px;">prod-db-01</span>
+            <span style="color:#8b949e;font-size:9px;">192.168.1.20</span>
+            <div style="display:flex;align-items:center;gap:3px;"><div style="width:5px;height:5px;border-radius:50%;background:#3fb950"></div><span style="color:#3fb950;font-size:8px;">在线</span></div>
+            <span style="color:#58a6ff;font-size:9px;">连接</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 60px 50px;padding:6px 8px;border-top:1px solid #21262d;gap:6px;align-items:center;">
+            <span style="color:#e6edf3;font-size:9px;">staging-01</span>
+            <span style="color:#8b949e;font-size:9px;">10.0.0.5</span>
+            <div style="display:flex;align-items:center;gap:3px;"><div style="width:5px;height:5px;border-radius:50%;background:#f85149"></div><span style="color:#f85149;font-size:8px;">离线</span></div>
+            <span style="color:#58a6ff;font-size:9px;">连接</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>表格列表</h3>
+      <p>紧凑表格，信息密度高，支持排序筛选。主机数量多（50+）时更易管理。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0d1117;padding:0;overflow:hidden;height:220px;display:flex;">
+      <div style="width:44px;background:#010409;border-right:1px solid #21262d;flex-shrink:0;"></div>
+      <div style="flex:1;padding:12px;overflow:hidden;">
+        <div style="display:flex;align-items:center;margin-bottom:8px;gap:6px;">
+          <span style="color:#e6edf3;font-size:11px;font-weight:600;">主机列表</span>
+          <div style="margin-left:auto;display:flex;gap:4px;">
+            <div style="background:#21262d;color:#8b949e;font-size:9px;padding:2px 6px;border-radius:3px;">⊞</div>
+            <div style="background:#1f6feb22;color:#58a6ff;font-size:9px;padding:2px 6px;border-radius:3px;">☰</div>
+          </div>
+        </div>
+        <!-- Group -->
+        <div style="margin-bottom:8px;">
+          <div style="color:#8b949e;font-size:9px;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
+            <span>▾</span> 生产环境 <span style="background:#21262d;padding:1px 5px;border-radius:3px;">3</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <div style="background:#161b22;border-radius:4px;padding:5px 8px;display:flex;align-items:center;gap:6px;">
+              <div style="width:5px;height:5px;border-radius:50%;background:#3fb950;flex-shrink:0;"></div>
+              <span style="color:#e6edf3;font-size:9px;flex:1;">prod-web-01</span>
+              <span style="color:#8b949e;font-size:8px;">192.168.1.10</span>
+              <span style="color:#58a6ff;font-size:8px;margin-left:6px;">SSH</span>
+            </div>
+            <div style="background:#161b22;border-radius:4px;padding:5px 8px;display:flex;align-items:center;gap:6px;">
+              <div style="width:5px;height:5px;border-radius:50%;background:#3fb950;flex-shrink:0;"></div>
+              <span style="color:#e6edf3;font-size:9px;flex:1;">prod-db-01</span>
+              <span style="color:#8b949e;font-size:8px;">192.168.1.20</span>
+              <span style="color:#58a6ff;font-size:8px;margin-left:6px;">SSH</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="color:#8b949e;font-size:9px;margin-bottom:4px;display:flex;align-items:center;gap:4px;">
+            <span>▾</span> 测试环境 <span style="background:#21262d;padding:1px 5px;border-radius:3px;">1</span>
+          </div>
+          <div style="background:#161b22;border-radius:4px;padding:5px 8px;display:flex;align-items:center;gap:6px;">
+            <div style="width:5px;height:5px;border-radius:50%;background:#f85149;flex-shrink:0;"></div>
+            <span style="color:#e6edf3;font-size:9px;flex:1;">staging-01</span>
+            <span style="color:#8b949e;font-size:8px;">10.0.0.5</span>
+            <span style="color:#58a6ff;font-size:8px;margin-left:6px;">SSH</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>分组列表 + 视图切换</h3>
+      <p>按环境/标签分组折叠，右上角切换卡片/列表视图。兼顾视觉和密度，适合有分组管理需求的团队。</p>
+    </div>
+  </div>
+
+</div>
