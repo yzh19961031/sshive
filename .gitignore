@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Superpowers brainstorm temp files
+.superpowers/brainstorm/
+
+# Go
+/server
+*.exe
+*.test
+vendor/
+
+# Env
+.env
+.env.local
+
+# Build output
+/web/dist
