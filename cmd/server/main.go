@@ -15,6 +15,7 @@ import (
 	"github.com/sshive/sshive/internal/db"
 	"github.com/sshive/sshive/internal/host"
 	sshmodule "github.com/sshive/sshive/internal/ssh"
+	sftpmodule "github.com/sshive/sshive/internal/sftp"
 	"github.com/sshive/sshive/internal/tenant"
 	"github.com/sshive/sshive/internal/user"
 )
@@ -91,6 +92,10 @@ func main() {
 	// WebSSH
 	sshH := sshmodule.NewHandler()
 	authed.GET("/ws/ssh/:hostId", auth.RequirePermission("host:connect"), sshH.Connect)
+
+	// SFTP
+	sftpH := sftpmodule.NewHandler()
+	authed.GET("/ws/sftp/:hostId", auth.RequirePermission("sftp:access"), sftpH.Connect)
 
 	addr := fmt.Sprintf(":%d", config.C.Port)
 	slog.Info("server starting", "addr", addr)
