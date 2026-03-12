@@ -15,5 +15,5 @@ vendor/
 .env
 .env.local
 
-# Build output
-/web/dist
+# Build output (frontend build goes to /web via vite.config outDir)
+# The /web directory is tracked for go:embed
