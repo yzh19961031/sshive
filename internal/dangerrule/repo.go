@@ -39,3 +39,11 @@ func (r *Repo) ListActive(tenantID int64) ([]model.DangerRule, error) {
 	err := db.DB.Where("(tenant_id = ? OR tenant_id = 0) AND enabled = 1", tenantID).Find(&list).Error
 	return list, err
 }
+
+func (r *Repo) GetByID(tenantID, id int64) (*model.DangerRule, error) {
+	var rule model.DangerRule
+	if err := db.DB.Where("id = ? AND tenant_id = ?", id, tenantID).First(&rule).Error; err != nil {
+		return nil, err
+	}
+	return &rule, nil
+}

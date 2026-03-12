@@ -52,18 +52,8 @@ func (s *Service) Create(tenantID int64, req CreateReq) (*model.DangerRule, erro
 }
 
 func (s *Service) Update(tenantID, id int64, req UpdateReq) (*model.DangerRule, error) {
-	rules, _, err := s.repo.List(tenantID, 1, 1000)
+	rule, err := s.repo.GetByID(tenantID, id)
 	if err != nil {
-		return nil, err
-	}
-	var rule *model.DangerRule
-	for i := range rules {
-		if rules[i].ID == id {
-			rule = &rules[i]
-			break
-		}
-	}
-	if rule == nil {
 		return nil, fmt.Errorf("rule not found")
 	}
 	if _, err := regexp.Compile(req.Pattern); err != nil {
