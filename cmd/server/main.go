@@ -3,8 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"mime"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sshive/sshive/internal/audit"
@@ -18,6 +23,7 @@ import (
 	sftpmodule "github.com/sshive/sshive/internal/sftp"
 	"github.com/sshive/sshive/internal/tenant"
 	"github.com/sshive/sshive/internal/user"
+	"github.com/sshive/sshive/web"
 )
 
 func main() {
@@ -96,6 +102,39 @@ func main() {
 	// SFTP
 	sftpH := sftpmodule.NewHandler()
 	authed.GET("/ws/sftp/:hostId", auth.RequirePermission("sftp:access"), sftpH.Connect)
+
+	// Static files (frontend SPA)
+	distFS, err := fs.Sub(web.Static, "dist")
+	if err != nil {
+		slog.Error("embed fs error", "err", err)
+		os.Exit(1)
+	}
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if len(path) >= 4 && path[:4] == "/api" {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			return
+		}
+		// Try to serve file from embedded FS
+		filePath := strings.TrimPrefix(path, "/")
+		if filePath == "" {
+			filePath = "index.html"
+		}
+		data, err := fs.ReadFile(distFS, filePath)
+		if err != nil {
+			// Fall back to index.html for SPA client-side routing
+			data, _ = fs.ReadFile(distFS, "index.html")
+			c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+			return
+		}
+		// Determine content type by file extension
+		ext := filepath.Ext(filePath)
+		contentType := mime.TypeByExtension(ext)
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		c.Data(http.StatusOK, contentType, data)
+	})
 
 	addr := fmt.Sprintf(":%d", config.C.Port)
 	slog.Info("server starting", "addr", addr)
