@@ -1,0 +1,11 @@
+db:
+  dsn: "user:pass@tcp(127.0.0.1:3306)/sshive?parseTime=true"
+
+redis:
+  addr: "127.0.0.1:6379"
+  password: ""
+
+encrypt_key: "<32字节随机密钥的base64>"
+cast_dir: "/data/sshive/cast"
+jwt_secret: "<JWT签名密钥>"
+port: 8080

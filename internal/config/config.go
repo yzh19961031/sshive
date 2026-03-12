@@ -4,50 +4,56 @@ package config
 import (
 	"fmt"
 	"os"
-	"strconv"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	DBDsn         string
-	RedisAddr     string
-	RedisPassword string
-	EncryptKey    string
-	CastDir       string
-	JWTSecret     string
-	Port          int
+	DB struct {
+		DSN string `yaml:"dsn"`
+	} `yaml:"db"`
+
+	Redis struct {
+		Addr     string `yaml:"addr"`
+		Password string `yaml:"password"`
+	} `yaml:"redis"`
+
+	EncryptKey string `yaml:"encrypt_key"`
+	CastDir    string `yaml:"cast_dir"`
+	JWTSecret  string `yaml:"jwt_secret"`
+	Port       int    `yaml:"port"`
 }
 
 var C Config
 
-func Load() error {
-	C = Config{
-		DBDsn:         requireEnv("SSHIVE_DB_DSN"),
-		RedisAddr:     requireEnv("SSHIVE_REDIS_ADDR"),
-		RedisPassword: os.Getenv("SSHIVE_REDIS_PASSWORD"),
-		EncryptKey:    requireEnv("SSHIVE_ENCRYPT_KEY"),
-		CastDir:       getEnvOrDefault("SSHIVE_CAST_DIR", "/data/sshive/cast"),
-		JWTSecret:     requireEnv("SSHIVE_JWT_SECRET"),
-	}
-	portStr := getEnvOrDefault("SSHIVE_PORT", "8080")
-	port, err := strconv.Atoi(portStr)
+func Load(path string) error {
+	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("invalid SSHIVE_PORT: %w", err)
+		return fmt.Errorf("open config file %q: %w", path, err)
 	}
-	C.Port = port
+	defer f.Close()
+
+	if err := yaml.NewDecoder(f).Decode(&C); err != nil {
+		return fmt.Errorf("decode config file: %w", err)
+	}
+
+	if C.DB.DSN == "" {
+		return fmt.Errorf("db.dsn is required")
+	}
+	if C.Redis.Addr == "" {
+		return fmt.Errorf("redis.addr is required")
+	}
+	if C.EncryptKey == "" {
+		return fmt.Errorf("encrypt_key is required")
+	}
+	if C.JWTSecret == "" {
+		return fmt.Errorf("jwt_secret is required")
+	}
+	if C.CastDir == "" {
+		C.CastDir = "/data/sshive/cast"
+	}
+	if C.Port == 0 {
+		C.Port = 8080
+	}
 	return nil
-}
-
-func requireEnv(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		panic(fmt.Sprintf("required env var %s is not set", key))
-	}
-	return v
-}
-
-func getEnvOrDefault(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
 }

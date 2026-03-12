@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -14,19 +15,22 @@ import (
 )
 
 func main() {
+	configPath := flag.String("config", "config.yaml", "path to config file")
+	flag.Parse()
+
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
-	if err := config.Load(); err != nil {
+	if err := config.Load(*configPath); err != nil {
 		slog.Error("load config failed", "err", err)
 		os.Exit(1)
 	}
 
-	if err := db.InitMySQL(config.C.DBDsn); err != nil {
+	if err := db.InitMySQL(config.C.DB.DSN); err != nil {
 		slog.Error("init mysql failed", "err", err)
 		os.Exit(1)
 	}
 
-	if err := db.InitRedis(config.C.RedisAddr, config.C.RedisPassword); err != nil {
+	if err := db.InitRedis(config.C.Redis.Addr, config.C.Redis.Password); err != nil {
 		slog.Error("init redis failed", "err", err)
 		os.Exit(1)
 	}
