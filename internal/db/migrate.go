@@ -17,5 +17,9 @@ func Migrate() error {
 		&model.Credential{},
 		&model.DangerRule{},
 		&model.DangerEvent{},
+		// Plan 3 new models
+		&model.Session{},
+		&model.SessionLog{},
+		&model.SessionCommand{},
 	)
 }

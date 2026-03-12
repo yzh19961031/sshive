@@ -7,12 +7,14 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sshive/sshive/internal/audit"
 	"github.com/sshive/sshive/internal/auth"
 	"github.com/sshive/sshive/internal/config"
 	"github.com/sshive/sshive/internal/credential"
 	"github.com/sshive/sshive/internal/dangerrule"
 	"github.com/sshive/sshive/internal/db"
 	"github.com/sshive/sshive/internal/host"
+	sshmodule "github.com/sshive/sshive/internal/ssh"
 	"github.com/sshive/sshive/internal/tenant"
 	"github.com/sshive/sshive/internal/user"
 )
@@ -78,6 +80,17 @@ func main() {
 	authed.POST("/danger-rules", auth.RequirePermission("rule:manage"), ruleH.Create)
 	authed.PUT("/danger-rules/:id", auth.RequirePermission("rule:manage"), ruleH.Update)
 	authed.DELETE("/danger-rules/:id", auth.RequirePermission("rule:manage"), ruleH.Delete)
+
+	// 审计日志
+	auditH := audit.NewHandler()
+	authed.GET("/sessions", auth.RequirePermission("audit:view"), auditH.ListSessions)
+	authed.GET("/sessions/:id/logs", auth.RequirePermission("audit:view"), auditH.ListLogs)
+	authed.GET("/sessions/:id/commands", auth.RequirePermission("audit:view"), auditH.ListCommands)
+	authed.GET("/sessions/:id/replay", auth.RequirePermission("audit:view"), auditH.Replay)
+
+	// WebSSH
+	sshH := sshmodule.NewHandler()
+	authed.GET("/ws/ssh/:hostId", auth.RequirePermission("host:connect"), sshH.Connect)
 
 	addr := fmt.Sprintf(":%d", config.C.Port)
 	slog.Info("server starting", "addr", addr)
