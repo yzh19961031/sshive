@@ -68,7 +68,7 @@ sshive/
 - Create: `.env.example`
 - Create: `cmd/server/main.go`（骨架）
 
-- [ ] **Step 1: 初始化 Go 模块**
+- [x] **Step 1: 初始化 Go 模块**
 
 ```bash
 cd /Volumes/data/personal/code/sshive
@@ -77,7 +77,7 @@ go mod init github.com/sshive/sshive
 
 Expected: 生成 `go.mod`，内容为 `module github.com/sshive/sshive`
 
-- [ ] **Step 2: 安装依赖**
+- [x] **Step 2: 安装依赖**
 
 ```bash
 go get github.com/gin-gonic/gin@v1.9.1
@@ -92,7 +92,7 @@ go mod tidy
 
 Expected: `go.sum` 生成，依赖全部 resolved
 
-- [ ] **Step 3: 创建 .env.example**
+- [x] **Step 3: 创建 .env.example**
 
 ```bash
 cat > .env.example << 'EOF'
@@ -106,7 +106,7 @@ SSHIVE_PORT=8080
 EOF
 ```
 
-- [ ] **Step 4: 创建 cmd/server/main.go 骨架**
+- [x] **Step 4: 创建 cmd/server/main.go 骨架**
 
 ```go
 // cmd/server/main.go
@@ -123,7 +123,7 @@ func main() {
 }
 ```
 
-- [ ] **Step 5: 验证编译通过**
+- [x] **Step 5: 验证编译通过**
 
 ```bash
 go build ./cmd/server/
@@ -131,7 +131,7 @@ go build ./cmd/server/
 
 Expected: 无报错，生成二进制文件
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git init
@@ -146,7 +146,7 @@ git commit -m "chore: init go module and project skeleton"
 **Files:**
 - Create: `internal/config/config.go`
 
-- [ ] **Step 1: 创建配置结构体**
+- [x] **Step 1: 创建配置结构体**
 
 ```go
 // internal/config/config.go
@@ -204,7 +204,7 @@ func getEnvOrDefault(key, def string) string {
 }
 ```
 
-- [ ] **Step 2: 验证编译**
+- [x] **Step 2: 验证编译**
 
 ```bash
 go build ./internal/config/
@@ -212,7 +212,7 @@ go build ./internal/config/
 
 Expected: 无报错
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/config/
@@ -227,7 +227,7 @@ git commit -m "feat: add config loader from env vars"
 - Create: `pkg/middleware/response.go`
 - Create: `pkg/ctxkey/keys.go`
 
-- [ ] **Step 1: 创建 context key 常量**
+- [x] **Step 1: 创建 context key 常量**
 
 ```go
 // pkg/ctxkey/keys.go
@@ -242,7 +242,7 @@ const (
 )
 ```
 
-- [ ] **Step 2: 创建统一响应格式**
+- [x] **Step 2: 创建统一响应格式**
 
 ```go
 // pkg/middleware/response.go
@@ -288,13 +288,13 @@ func InternalError(c *gin.Context, msg string) {
 }
 ```
 
-- [ ] **Step 3: 编译验证**
+- [x] **Step 3: 编译验证**
 
 ```bash
 go build ./pkg/...
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add pkg/
@@ -310,7 +310,7 @@ git commit -m "feat: add response helper and context keys"
 - Create: `internal/model/user.go`
 - Create: `internal/model/permission.go`
 
-- [ ] **Step 1: 创建 Tenant 模型**
+- [x] **Step 1: 创建 Tenant 模型**
 
 ```go
 // internal/model/tenant.go
@@ -326,7 +326,7 @@ type Tenant struct {
 }
 ```
 
-- [ ] **Step 2: 创建 User / Role 模型**
+- [x] **Step 2: 创建 User / Role 模型**
 
 ```go
 // internal/model/user.go
@@ -357,7 +357,7 @@ type UserRole struct {
 }
 ```
 
-- [ ] **Step 3: 创建 Permission 模型**
+- [x] **Step 3: 创建 Permission 模型**
 
 ```go
 // internal/model/permission.go
@@ -375,13 +375,13 @@ type RolePermission struct {
 }
 ```
 
-- [ ] **Step 4: 编译验证**
+- [x] **Step 4: 编译验证**
 
 ```bash
 go build ./internal/model/
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/model/
@@ -397,7 +397,7 @@ git commit -m "feat: add database models (tenant, user, role, permission)"
 - Create: `internal/db/redis.go`
 - Create: `internal/db/migrate.go`
 
-- [ ] **Step 1: MySQL 连接**
+- [x] **Step 1: MySQL 连接**
 
 ```go
 // internal/db/mysql.go
@@ -430,7 +430,7 @@ func InitMySQL(dsn string) error {
 }
 ```
 
-- [ ] **Step 2: Redis 连接**
+- [x] **Step 2: Redis 连接**
 
 ```go
 // internal/db/redis.go
@@ -457,7 +457,7 @@ func InitRedis(addr, password string) error {
 }
 ```
 
-- [ ] **Step 3: 数据库迁移**
+- [x] **Step 3: 数据库迁移**
 
 ```go
 // internal/db/migrate.go
@@ -479,13 +479,13 @@ func Migrate() error {
 }
 ```
 
-- [ ] **Step 4: 编译验证**
+- [x] **Step 4: 编译验证**
 
 ```bash
 go build ./internal/db/
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/db/
@@ -502,7 +502,7 @@ git commit -m "feat: add mysql and redis initialization with auto-migrate"
 - Create: `pkg/encrypt/encrypt.go`
 - Create: `pkg/encrypt/encrypt_test.go`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```go
 // pkg/encrypt/encrypt_test.go
@@ -547,7 +547,7 @@ func TestDecryptWrongKey(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 ```bash
 go test ./pkg/encrypt/ -v
@@ -555,7 +555,7 @@ go test ./pkg/encrypt/ -v
 
 Expected: FAIL with "undefined: encrypt.Encrypt"
 
-- [ ] **Step 3: 实现加解密**
+- [x] **Step 3: 实现加解密**
 
 ```go
 // pkg/encrypt/encrypt.go
@@ -628,7 +628,7 @@ func KeyFromBase64(b64 string) ([]byte, error) {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 ```bash
 go test ./pkg/encrypt/ -v
@@ -636,7 +636,7 @@ go test ./pkg/encrypt/ -v
 
 Expected: PASS，3 个测试全部通过
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/encrypt/
@@ -650,7 +650,7 @@ git commit -m "feat: add AES-256-GCM encrypt/decrypt"
 **Files:**
 - Create: `internal/auth/jwt.go`
 
-- [ ] **Step 1: 实现 JWT 工具**
+- [x] **Step 1: 实现 JWT 工具**
 
 ```go
 // internal/auth/jwt.go
@@ -705,7 +705,7 @@ func ParseToken(secret, tokenStr string) (*Claims, error) {
 }
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 go build ./internal/auth/
@@ -713,7 +713,7 @@ go build ./internal/auth/
 
 Expected: 无报错
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/auth/jwt.go
@@ -728,7 +728,7 @@ git commit -m "feat: add JWT sign and parse"
 - Create: `internal/auth/handler.go`
 - Create: `internal/auth/handler_test.go`
 
-- [ ] **Step 1: 实现登录/登出 Handler**
+- [x] **Step 1: 实现登录/登出 Handler**
 
 ```go
 // internal/auth/handler.go
@@ -829,7 +829,7 @@ func HashPassword(password string) (string, error) {
 }
 ```
 
-- [ ] **Step 2: 写集成测试（使用 httptest）**
+- [x] **Step 2: 写集成测试（使用 httptest）**
 
 ```go
 // internal/auth/handler_test.go
@@ -866,7 +866,7 @@ func TestLoginMissingFields(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: 运行测试**
+- [x] **Step 3: 运行测试**
 
 ```bash
 go test ./internal/auth/ -v -run TestLoginMissingFields
@@ -874,7 +874,7 @@ go test ./internal/auth/ -v -run TestLoginMissingFields
 
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/auth/
@@ -889,7 +889,7 @@ git commit -m "feat: add login/logout handlers with JWT and Redis blacklist"
 - Create: `internal/auth/middleware.go`
 - Create: `internal/auth/rbac.go`
 
-- [ ] **Step 1: 实现 JWT 验证中间件**
+- [x] **Step 1: 实现 JWT 验证中间件**
 
 ```go
 // internal/auth/middleware.go
@@ -934,7 +934,7 @@ func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 }
 ```
 
-- [ ] **Step 2: 实现 RBAC 权限映射**
+- [x] **Step 2: 实现 RBAC 权限映射**
 
 ```go
 // internal/auth/rbac.go
@@ -1006,7 +1006,7 @@ func GetUserID(ctx context.Context) int64 {
 }
 ```
 
-- [ ] **Step 3: 写 RBAC 单元测试**
+- [x] **Step 3: 写 RBAC 单元测试**
 
 ```go
 // internal/auth/rbac_test.go
@@ -1027,7 +1027,7 @@ func TestHasPermission(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: 运行测试**
+- [x] **Step 4: 运行测试**
 
 ```bash
 go test ./internal/auth/ -v -run TestHasPermission
@@ -1035,7 +1035,7 @@ go test ./internal/auth/ -v -run TestHasPermission
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/auth/middleware.go internal/auth/rbac.go internal/auth/rbac_test.go
@@ -1054,7 +1054,7 @@ git commit -m "feat: add JWT middleware and RBAC permission check"
 - Create: `internal/tenant/handler.go`
 - Create: `internal/tenant/service_test.go`
 
-- [ ] **Step 1: 实现 Tenant Repo**
+- [x] **Step 1: 实现 Tenant Repo**
 
 ```go
 // internal/tenant/repo.go
@@ -1093,7 +1093,7 @@ func (r *Repo) GetByID(id int64) (*model.Tenant, error) {
 }
 ```
 
-- [ ] **Step 2: 实现 Tenant Service**
+- [x] **Step 2: 实现 Tenant Service**
 
 ```go
 // internal/tenant/service.go
@@ -1131,7 +1131,7 @@ func (s *Service) List(page, pageSize int) ([]model.Tenant, int64, error) {
 }
 ```
 
-- [ ] **Step 3: 实现 Tenant Handler**
+- [x] **Step 3: 实现 Tenant Handler**
 
 ```go
 // internal/tenant/handler.go
@@ -1177,7 +1177,7 @@ func (h *Handler) Create(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/tenant/
@@ -1194,7 +1194,7 @@ git commit -m "feat: add tenant CRUD (repo/service/handler)"
 - Create: `internal/user/handler.go`
 - Create: `internal/user/service_test.go`
 
-- [ ] **Step 1: 实现 User Repo**
+- [x] **Step 1: 实现 User Repo**
 
 ```go
 // internal/user/repo.go
@@ -1248,7 +1248,7 @@ func (r *Repo) SetRoles(userID int64, roleIDs []int64) error {
 }
 ```
 
-- [ ] **Step 2: 注意 Repo 需要导入 gorm**
+- [x] **Step 2: 注意 Repo 需要导入 gorm**
 
 在 `repo.go` 顶部添加导入：
 
@@ -1260,7 +1260,7 @@ import (
 )
 ```
 
-- [ ] **Step 3: 实现 User Service**
+- [x] **Step 3: 实现 User Service**
 
 ```go
 // internal/user/service.go
@@ -1322,7 +1322,7 @@ func (s *Service) AssignRoles(tenantID, userID int64, req AssignRolesReq) error 
 }
 ```
 
-- [ ] **Step 4: 实现 User Handler**
+- [x] **Step 4: 实现 User Handler**
 
 ```go
 // internal/user/handler.go
@@ -1390,7 +1390,7 @@ func (h *Handler) AssignRoles(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 5: 编译验证**
+- [x] **Step 5: 编译验证**
 
 ```bash
 go build ./internal/...
@@ -1398,7 +1398,7 @@ go build ./internal/...
 
 Expected: 无报错
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/user/
@@ -1412,7 +1412,7 @@ git commit -m "feat: add user CRUD and role assignment"
 **Files:**
 - Modify: `cmd/server/main.go`
 
-- [ ] **Step 1: 完整实现 main.go**
+- [x] **Step 1: 完整实现 main.go**
 
 ```go
 // cmd/server/main.go
@@ -1484,7 +1484,7 @@ func main() {
 }
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 go build ./cmd/server/
@@ -1492,7 +1492,7 @@ go build ./cmd/server/
 
 Expected: 生成二进制，无报错
 
-- [ ] **Step 3: 运行冒烟测试（需要本地 MySQL + Redis）**
+- [x] **Step 3: 运行冒烟测试（需要本地 MySQL + Redis）**
 
 ```bash
 # 先确保 MySQL 中存在 sshive 数据库
@@ -1514,7 +1514,7 @@ kill %1
 
 Expected: `{"code":401,"message":"用户名或密码错误","data":null}`
 
-- [ ] **Step 4: 最终 Commit**
+- [x] **Step 4: 最终 Commit**
 
 ```bash
 git add cmd/server/main.go
