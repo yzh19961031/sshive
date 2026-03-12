@@ -12,5 +12,10 @@ func Migrate() error {
 		&model.UserRole{},
 		&model.Permission{},
 		&model.RolePermission{},
+		// Plan 2 new models
+		&model.Host{},
+		&model.Credential{},
+		&model.DangerRule{},
+		&model.DangerEvent{},
 	)
 }
