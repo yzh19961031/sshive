@@ -43,6 +43,7 @@ func (s *Service) StartSession(tenantID, userID, hostID int64, clientIP string, 
 		return nil, fmt.Errorf("mkdir cast dir: %w", err)
 	}
 	castPath := filepath.Join(castDir, strconv.FormatInt(sess.ID, 10)+".cast")
+	sess.CastFilePath = castPath
 
 	castWriter, err := cast.NewWriter(castPath, width, height)
 	if err != nil {
