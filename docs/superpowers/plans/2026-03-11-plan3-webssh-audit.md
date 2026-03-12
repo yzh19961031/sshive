@@ -1,6 +1,6 @@
 # SSHive Plan 3: WebSSH + 审计录制
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 实现 WebSocket SSH 终端（含 PTY、高危拦截）和完整审计录制（.cast 文件 + session_logs + session_commands）。
 
@@ -44,7 +44,7 @@ pkg/
 - Create: `internal/model/session.go`
 - Modify: `internal/db/migrate.go`
 
-- [ ] **Step 1: 创建 Session / SessionLog / SessionCommand 模型**
+- [x] **Step 1: 创建 Session / SessionLog / SessionCommand 模型**
 
 ```go
 // internal/model/session.go
@@ -80,7 +80,7 @@ type SessionCommand struct {
 }
 ```
 
-- [ ] **Step 2: 更新 migrate.go**
+- [x] **Step 2: 更新 migrate.go**
 
 在 `DB.AutoMigrate(...)` 列表中追加：
 
@@ -90,7 +90,7 @@ type SessionCommand struct {
 &model.SessionCommand{},
 ```
 
-- [ ] **Step 3: 编译验证**
+- [x] **Step 3: 编译验证**
 
 ```bash
 go build ./internal/model/ ./internal/db/
@@ -98,7 +98,7 @@ go build ./internal/model/ ./internal/db/
 
 Expected: 无报错
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/model/session.go internal/db/migrate.go
@@ -113,7 +113,7 @@ git commit -m "feat: add session/log/command models"
 - Create: `pkg/cast/writer.go`
 - Create: `pkg/cast/writer_test.go`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```go
 // pkg/cast/writer_test.go
@@ -158,7 +158,7 @@ func TestCastWriter(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: 运行确认失败**
+- [x] **Step 2: 运行确认失败**
 
 ```bash
 go test ./pkg/cast/ -v
@@ -166,7 +166,7 @@ go test ./pkg/cast/ -v
 
 Expected: FAIL with "undefined: cast.NewWriter"
 
-- [ ] **Step 3: 实现 cast.Writer**
+- [x] **Step 3: 实现 cast.Writer**
 
 ```go
 // pkg/cast/writer.go
@@ -251,7 +251,7 @@ func (w *Writer) Close() error {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过**
+- [x] **Step 4: 运行确认通过**
 
 ```bash
 go test ./pkg/cast/ -v
@@ -259,7 +259,7 @@ go test ./pkg/cast/ -v
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/cast/
@@ -278,7 +278,7 @@ git commit -m "feat: add asciinema v2 cast file writer"
 - Create: `internal/audit/service.go`
 - Create: `internal/audit/handler.go`
 
-- [ ] **Step 1: 实现 Audit Repo**
+- [x] **Step 1: 实现 Audit Repo**
 
 ```go
 // internal/audit/repo.go
@@ -365,7 +365,7 @@ func (r *Repo) ListCommands(sessionID int64, page, pageSize int) ([]model.Sessio
 }
 ```
 
-- [ ] **Step 2: 实现异步写入器**
+- [x] **Step 2: 实现异步写入器**
 
 ```go
 // internal/audit/writer.go
@@ -485,7 +485,7 @@ func (w *AsyncWriter) Close() {
 }
 ```
 
-- [ ] **Step 3: 实现 Audit Service**
+- [x] **Step 3: 实现 Audit Service**
 
 ```go
 // internal/audit/service.go
@@ -581,7 +581,7 @@ func (s *Service) ListCommands(tenantID, sessionID int64, page, pageSize int) ([
 }
 ```
 
-- [ ] **Step 4: 实现 Audit Handler**
+- [x] **Step 4: 实现 Audit Handler**
 
 ```go
 // internal/audit/handler.go
@@ -676,7 +676,7 @@ func (h *Handler) Replay(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 5: 编译验证**
+- [x] **Step 5: 编译验证**
 
 ```bash
 go build ./internal/audit/
@@ -684,7 +684,7 @@ go build ./internal/audit/
 
 Expected: 无报错
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/audit/
@@ -700,7 +700,7 @@ git commit -m "feat: add audit module with async writer and session management"
 **Files:**
 - Create: `internal/ssh/interceptor.go`
 
-- [ ] **Step 1: 实现输入拦截器**
+- [x] **Step 1: 实现输入拦截器**
 
 ```go
 // internal/ssh/interceptor.go
@@ -752,7 +752,7 @@ func (ic *Interceptor) Feed(data string) *InterceptResult {
 }
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 go build ./internal/ssh/
@@ -760,7 +760,7 @@ go build ./internal/ssh/
 
 Expected: 无报错
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add internal/ssh/interceptor.go
@@ -774,7 +774,7 @@ git commit -m "feat: add danger command interceptor"
 **Files:**
 - Create: `internal/ssh/session.go`
 
-- [ ] **Step 1: 实现 SSH Session**
+- [x] **Step 1: 实现 SSH Session**
 
 ```go
 // internal/ssh/session.go
@@ -1017,7 +1017,7 @@ func parseJSON(data []byte, v any) error {
 
 > **注意：** `parseJSON` 和 `writeDangerEvent` 需在 handler.go 中补充实现，见下一步。
 
-- [ ] **Step 2: 完善 session.go 中的辅助函数**
+- [x] **Step 2: 完善 session.go 中的辅助函数**
 
 将 `session.go` 中 `parseJSON` 替换为正确实现，并添加 `writeDangerEvent`：
 
@@ -1046,7 +1046,7 @@ func writeDangerEvent(sessionID int64, command, matchedRule string) error {
 }
 ```
 
-- [ ] **Step 3: Commit（阶段性）**
+- [x] **Step 3: Commit（阶段性）**
 
 ```bash
 git add internal/ssh/session.go
@@ -1060,7 +1060,7 @@ git commit -m "feat: add WebSSH session with PTY and danger interceptor"
 **Files:**
 - Create: `internal/ssh/handler.go`
 
-- [ ] **Step 1: 实现 WebSocket Handler**
+- [x] **Step 1: 实现 WebSocket Handler**
 
 ```go
 // internal/ssh/handler.go
@@ -1157,7 +1157,7 @@ func (h *Handler) Connect(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 go build ./internal/ssh/
@@ -1165,7 +1165,7 @@ go build ./internal/ssh/
 
 Expected: 无报错
 
-- [ ] **Step 3: 注册路由到 main.go**
+- [x] **Step 3: 注册路由到 main.go**
 
 在 `authed` 路由组末尾添加：
 
@@ -1188,7 +1188,7 @@ sshmodule "github.com/sshive/sshive/internal/ssh"
 "github.com/sshive/sshive/internal/audit"
 ```
 
-- [ ] **Step 4: 全量编译验证**
+- [x] **Step 4: 全量编译验证**
 
 ```bash
 go build ./...
@@ -1196,7 +1196,7 @@ go build ./...
 
 Expected: 无报错
 
-- [ ] **Step 5: Commit + Push**
+- [x] **Step 5: Commit + Push**
 
 ```bash
 git add internal/ssh/ internal/audit/ cmd/server/main.go

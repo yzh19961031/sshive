@@ -1,6 +1,6 @@
 # SSHive Plan 2: 主机管理 + 凭据 + 高危规则
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 实现主机资产管理、凭据加密存储/解密、高危指令规则 CRUD，输出完整的 REST API。
 
@@ -50,7 +50,7 @@ internal/
 - Create: `internal/model/dangerrule.go`
 - Modify: `internal/db/migrate.go`
 
-- [ ] **Step 1: 创建 Host 模型**
+- [x] **Step 1: 创建 Host 模型**
 
 ```go
 // internal/model/host.go
@@ -102,7 +102,7 @@ type Host struct {
 }
 ```
 
-- [ ] **Step 2: 创建 Credential 模型**
+- [x] **Step 2: 创建 Credential 模型**
 
 ```go
 // internal/model/credential.go
@@ -121,7 +121,7 @@ type Credential struct {
 }
 ```
 
-- [ ] **Step 3: 创建 DangerRule / DangerEvent 模型**
+- [x] **Step 3: 创建 DangerRule / DangerEvent 模型**
 
 ```go
 // internal/model/dangerrule.go
@@ -148,7 +148,7 @@ type DangerEvent struct {
 }
 ```
 
-- [ ] **Step 4: 更新 migrate.go，加入新模型**
+- [x] **Step 4: 更新 migrate.go，加入新模型**
 
 ```go
 // internal/db/migrate.go
@@ -175,7 +175,7 @@ func Migrate() error {
 }
 ```
 
-- [ ] **Step 5: 编译验证**
+- [x] **Step 5: 编译验证**
 
 ```bash
 go build ./internal/model/ ./internal/db/
@@ -183,7 +183,7 @@ go build ./internal/model/ ./internal/db/
 
 Expected: 无报错
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/model/ internal/db/migrate.go
@@ -200,7 +200,7 @@ git commit -m "feat: add host, credential, danger rule models"
 - Create: `internal/credential/handler.go`
 - Create: `internal/credential/service_test.go`
 
-- [ ] **Step 1: 实现 Credential Repo**
+- [x] **Step 1: 实现 Credential Repo**
 
 ```go
 // internal/credential/repo.go
@@ -244,7 +244,7 @@ func (r *Repo) Delete(tenantID, id int64) error {
 }
 ```
 
-- [ ] **Step 2: 实现 Credential Service**
+- [x] **Step 2: 实现 Credential Service**
 
 ```go
 // internal/credential/service.go
@@ -324,7 +324,7 @@ func (s *Service) DecryptSecret(tenantID, id int64) (username, secret string, er
 }
 ```
 
-- [ ] **Step 3: 写 Service 测试（不依赖数据库）**
+- [x] **Step 3: 写 Service 测试（不依赖数据库）**
 
 ```go
 // internal/credential/service_test.go
@@ -363,7 +363,7 @@ func TestEncryptDecryptRoundtrip(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: 运行测试**
+- [x] **Step 4: 运行测试**
 
 ```bash
 go test ./internal/credential/ -v -run TestEncryptDecryptRoundtrip
@@ -371,7 +371,7 @@ go test ./internal/credential/ -v -run TestEncryptDecryptRoundtrip
 
 Expected: PASS
 
-- [ ] **Step 5: 实现 Credential Handler**
+- [x] **Step 5: 实现 Credential Handler**
 
 ```go
 // internal/credential/handler.go
@@ -421,7 +421,7 @@ func (h *Handler) Create(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/credential/
@@ -440,7 +440,7 @@ git commit -m "feat: add credential module with AES encryption"
 - Create: `internal/host/handler.go`
 - Create: `internal/host/service_test.go`
 
-- [ ] **Step 1: 实现 Host Repo**
+- [x] **Step 1: 实现 Host Repo**
 
 ```go
 // internal/host/repo.go
@@ -488,7 +488,7 @@ func (r *Repo) GetByID(tenantID, id int64) (*model.Host, error) {
 }
 ```
 
-- [ ] **Step 2: 实现 Host Service**
+- [x] **Step 2: 实现 Host Service**
 
 ```go
 // internal/host/service.go
@@ -577,7 +577,7 @@ func (s *Service) GetByID(tenantID, id int64) (*model.Host, error) {
 }
 ```
 
-- [ ] **Step 3: 实现 Host Handler**
+- [x] **Step 3: 实现 Host Handler**
 
 ```go
 // internal/host/handler.go
@@ -661,7 +661,7 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 4: 编译验证**
+- [x] **Step 4: 编译验证**
 
 ```bash
 go build ./internal/host/
@@ -669,7 +669,7 @@ go build ./internal/host/
 
 Expected: 无报错
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/host/
@@ -689,7 +689,7 @@ git commit -m "feat: add host CRUD module"
 - Create: `internal/dangerrule/handler.go`
 - Create: `internal/dangerrule/service_test.go`
 
-- [ ] **Step 1: 实现 DangerRule Repo**
+- [x] **Step 1: 实现 DangerRule Repo**
 
 ```go
 // internal/dangerrule/repo.go
@@ -736,7 +736,7 @@ func (r *Repo) ListActive(tenantID int64) ([]model.DangerRule, error) {
 }
 ```
 
-- [ ] **Step 2: 实现正则匹配器（含缓存）**
+- [x] **Step 2: 实现正则匹配器（含缓存）**
 
 ```go
 // internal/dangerrule/matcher.go
@@ -810,7 +810,7 @@ func (m *Matcher) Match(tenantID int64, command string) string {
 }
 ```
 
-- [ ] **Step 3: 写正则匹配单元测试（不依赖数据库）**
+- [x] **Step 3: 写正则匹配单元测试（不依赖数据库）**
 
 ```go
 // internal/dangerrule/service_test.go
@@ -849,7 +849,7 @@ func TestDangerPatterns(t *testing.T) {
 }
 ```
 
-- [ ] **Step 4: 运行测试，确认通过**
+- [x] **Step 4: 运行测试，确认通过**
 
 ```bash
 go test ./internal/dangerrule/ -v -run TestDangerPatterns
@@ -857,7 +857,7 @@ go test ./internal/dangerrule/ -v -run TestDangerPatterns
 
 Expected: PASS（10 个子用例全部通过）
 
-- [ ] **Step 5: 实现 DangerRule Service**
+- [x] **Step 5: 实现 DangerRule Service**
 
 ```go
 // internal/dangerrule/service.go
@@ -956,7 +956,7 @@ func (s *Service) List(tenantID int64, page, pageSize int) ([]model.DangerRule, 
 }
 ```
 
-- [ ] **Step 6: 实现 DangerRule Handler**
+- [x] **Step 6: 实现 DangerRule Handler**
 
 ```go
 // internal/dangerrule/handler.go
@@ -1040,7 +1040,7 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 7: 编译验证**
+- [x] **Step 7: 编译验证**
 
 ```bash
 go build ./internal/dangerrule/
@@ -1048,7 +1048,7 @@ go build ./internal/dangerrule/
 
 Expected: 无报错
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/dangerrule/
@@ -1062,7 +1062,7 @@ git commit -m "feat: add danger rule CRUD with regex matcher cache"
 **Files:**
 - Modify: `cmd/server/main.go`
 
-- [ ] **Step 1: 在 main.go 中注册新路由**
+- [x] **Step 1: 在 main.go 中注册新路由**
 
 在 `authed` 路由组后追加：
 
@@ -1095,7 +1095,7 @@ authed.DELETE("/danger-rules/:id", auth.RequirePermission("rule:manage"), ruleH.
 "github.com/sshive/sshive/internal/dangerrule"
 ```
 
-- [ ] **Step 2: 编译验证**
+- [x] **Step 2: 编译验证**
 
 ```bash
 go build ./cmd/server/
@@ -1103,7 +1103,7 @@ go build ./cmd/server/
 
 Expected: 无报错
 
-- [ ] **Step 3: 运行全部测试**
+- [x] **Step 3: 运行全部测试**
 
 ```bash
 go test ./... -v
@@ -1111,14 +1111,14 @@ go test ./... -v
 
 Expected: 所有测试 PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add cmd/server/main.go
 git commit -m "feat: register host/credential/danger-rule routes in main"
 ```
 
-- [ ] **Step 5: Push 到 GitHub**
+- [x] **Step 5: Push 到 GitHub**
 
 ```bash
 git push origin main
