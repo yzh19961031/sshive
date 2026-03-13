@@ -1,6 +1,6 @@
 # Plan 6 — Bug Fixes & UX Polish Implementation Plan
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Fix replay auth, show host/user names in audit list, add command log viewer, collapsible grouped sidebar, dashboard home page, replay modal, and basic user management.
 
@@ -18,7 +18,7 @@
 - Modify: `internal/audit/service.go`
 - Modify: `internal/audit/repo.go`
 
-- [ ] **Step 1: Add `SessionListItem` struct to `internal/audit/service.go`**
+- [x] **Step 1: Add `SessionListItem` struct to `internal/audit/service.go`**
 
 Add after the existing imports, before `Service` struct:
 
@@ -42,7 +42,7 @@ type SessionListItem struct {
 
 Also add `"time"` to imports if not already present (it already is via `StartSessionResult`).
 
-- [ ] **Step 2: Change `ListSessions` in `service.go` to return `[]SessionListItem`**
+- [x] **Step 2: Change `ListSessions` in `service.go` to return `[]SessionListItem`**
 
 Replace:
 ```go
@@ -70,7 +70,7 @@ func (s *Service) ListSessions(tenantID int64, page, pageSize int) ([]SessionLis
 }
 ```
 
-- [ ] **Step 3: Rewrite `ListSessions` in `repo.go` to use raw SQL JOIN**
+- [x] **Step 3: Rewrite `ListSessions` in `repo.go` to use raw SQL JOIN**
 
 Replace the existing `ListSessions` method:
 ```go
@@ -116,7 +116,7 @@ func (r *Repo) ListSessions(tenantID int64, page, pageSize int) ([]SessionListIt
 
 Add `"github.com/sshive/sshive/internal/audit"` note: `SessionListItem` is in the same package so no import needed.
 
-- [ ] **Step 4: Verify the build compiles**
+- [x] **Step 4: Verify the build compiles**
 
 ```bash
 cd /Volumes/data/personal/code/sshive && go build ./...
@@ -124,7 +124,7 @@ cd /Volumes/data/personal/code/sshive && go build ./...
 
 Expected: no errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/audit/service.go internal/audit/repo.go
@@ -139,7 +139,7 @@ git commit -m "feat: audit ListSessions returns host_name and username via JOIN"
 - Create: `internal/stats/handler.go`
 - Modify: `cmd/server/main.go`
 
-- [ ] **Step 1: Create `internal/stats/handler.go`**
+- [x] **Step 1: Create `internal/stats/handler.go`**
 
 ```go
 package stats
@@ -185,7 +185,7 @@ func (h *Handler) Get(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 2: Register `GET /api/stats` in `cmd/server/main.go`**
+- [x] **Step 2: Register `GET /api/stats` in `cmd/server/main.go`**
 
 Add import at top of main.go:
 ```go
@@ -202,7 +202,7 @@ Add route inside the `authed` group:
 authed.GET("/stats", statsHandler.Get)
 ```
 
-- [ ] **Step 3: Build to verify**
+- [x] **Step 3: Build to verify**
 
 ```bash
 cd /Volumes/data/personal/code/sshive && go build ./...
@@ -210,7 +210,7 @@ cd /Volumes/data/personal/code/sshive && go build ./...
 
 Expected: no errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add internal/stats/handler.go cmd/server/main.go
@@ -227,7 +227,7 @@ git commit -m "feat: add GET /api/stats endpoint for dashboard metrics"
 - Modify: `frontend/src/api/session.ts`
 - Modify: `frontend/src/views/AuditReplayView.vue`
 
-- [ ] **Step 1: Update `getReplayUrl` to include token**
+- [x] **Step 1: Update `getReplayUrl` to include token**
 
 Replace `frontend/src/api/session.ts` with:
 
@@ -249,7 +249,7 @@ export const sessionApi = {
 }
 ```
 
-- [ ] **Step 2: Build frontend to verify TypeScript**
+- [x] **Step 2: Build frontend to verify TypeScript**
 
 ```bash
 cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | head -30
@@ -257,7 +257,7 @@ cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | head -30
 
 Expected: no TypeScript errors (only the build output).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/api/session.ts
@@ -271,7 +271,7 @@ git commit -m "fix: append JWT token to replay URL for asciinema auth"
 **Files:**
 - Modify: `frontend/src/views/AuditSessionsView.vue`
 
-- [ ] **Step 1: Replace `AuditSessionsView.vue` with full implementation**
+- [x] **Step 1: Replace `AuditSessionsView.vue` with full implementation**
 
 ```vue
 <!-- frontend/src/views/AuditSessionsView.vue -->
@@ -409,7 +409,7 @@ onMounted(() => loadPage(1))
 </style>
 ```
 
-- [ ] **Step 2: Build frontend to verify**
+- [x] **Step 2: Build frontend to verify**
 
 ```bash
 cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | grep -E "error|Error" | head -20
@@ -417,7 +417,7 @@ cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | grep -E "
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/views/AuditSessionsView.vue
@@ -440,7 +440,7 @@ Groups: **运维** (主机列表, 终端) | **安全** (审计日志, 高危规�
 
 Expanded: 160px — icon + text + group label. Collapsed: 56px — icon only (tooltip on hover).
 
-- [ ] **Step 1: Replace `MainLayout.vue`**
+- [x] **Step 1: Replace `MainLayout.vue`**
 
 ```vue
 <!-- frontend/src/layouts/MainLayout.vue -->
@@ -670,7 +670,7 @@ const navGroups = [
 </style>
 ```
 
-- [ ] **Step 2: Build to verify**
+- [x] **Step 2: Build to verify**
 
 ```bash
 cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | grep -E "error|Error" | head -20
@@ -678,7 +678,7 @@ cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | grep -E "
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/src/layouts/MainLayout.vue
@@ -697,7 +697,7 @@ git commit -m "feat: collapsible grouped sidebar with 运维/安全/系统 group
 - Modify: `frontend/src/router/index.ts`
 - Modify: `frontend/src/stores/auth.ts`
 
-- [ ] **Step 1: Create `frontend/src/api/stats.ts`**
+- [x] **Step 1: Create `frontend/src/api/stats.ts`**
 
 ```typescript
 // frontend/src/api/stats.ts
@@ -715,7 +715,7 @@ export const statsApi = {
 }
 ```
 
-- [ ] **Step 2: Create `frontend/src/views/DashboardView.vue`**
+- [x] **Step 2: Create `frontend/src/views/DashboardView.vue`**
 
 ```vue
 <!-- frontend/src/views/DashboardView.vue -->
@@ -884,7 +884,7 @@ onMounted(loadData)
 </style>
 ```
 
-- [ ] **Step 3: Add `/dashboard` route and update default redirect in `router/index.ts`**
+- [x] **Step 3: Add `/dashboard` route and update default redirect in `router/index.ts`**
 
 Replace the router file:
 
@@ -926,11 +926,11 @@ router.beforeEach((to) => {
 })
 ```
 
-- [ ] **Step 4: Update login redirect in `stores/auth.ts`**
+- [x] **Step 4: Update login redirect in `stores/auth.ts`**
 
 In `frontend/src/stores/auth.ts`, change `router.push('/hosts')` to `router.push('/dashboard')`.
 
-- [ ] **Step 5: Add Dashboard nav item to sidebar**
+- [x] **Step 5: Add Dashboard nav item to sidebar**
 
 In `frontend/src/layouts/MainLayout.vue`, add dashboard to the `运维` group's items:
 
@@ -945,7 +945,7 @@ In `frontend/src/layouts/MainLayout.vue`, add dashboard to the `运维` group's 
 },
 ```
 
-- [ ] **Step 6: Build to verify**
+- [x] **Step 6: Build to verify**
 
 ```bash
 cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | grep -E "error|Error" | head -20
@@ -953,7 +953,7 @@ cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | grep -E "
 
 Expected: no errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add frontend/src/api/stats.ts frontend/src/views/DashboardView.vue \
@@ -974,7 +974,7 @@ git commit -m "feat: add dashboard page with stats cards, recent sessions, and q
 - Modify: `internal/user/handler.go`
 - Modify: `cmd/server/main.go`
 
-- [ ] **Step 1: Add `Update` and `Disable` to `repo.go`**
+- [x] **Step 1: Add `Update` and `Disable` to `repo.go`**
 
 Add after the existing `SetRoles` method in `internal/user/repo.go`:
 
@@ -992,7 +992,7 @@ func (r *Repo) ListRoles(tenantID int64) ([]model.Role, error) {
 }
 ```
 
-- [ ] **Step 2: Add `UpdateUser`, `DisableUser`, `ListRoles` to `service.go`**
+- [x] **Step 2: Add `UpdateUser`, `DisableUser`, `ListRoles` to `service.go`**
 
 Add after `AssignRoles` in `internal/user/service.go`:
 
@@ -1031,7 +1031,7 @@ func (s *Service) ListRoles(tenantID int64) ([]model.Role, error) {
 }
 ```
 
-- [ ] **Step 3: Add `Update`, `Disable`, `GetRoles` handlers to `handler.go`**
+- [x] **Step 3: Add `Update`, `Disable`, `GetRoles` handlers to `handler.go`**
 
 Add after `AssignRoles` in `internal/user/handler.go`:
 
@@ -1080,7 +1080,7 @@ func (h *Handler) GetRoles(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 4: Register new routes in `cmd/server/main.go`**
+- [x] **Step 4: Register new routes in `cmd/server/main.go`**
 
 In the `authed` group section for users, add after `PUT /api/users/:id/roles`:
 
@@ -1104,7 +1104,7 @@ userMgmt.GET("/roles", userHandler.GetRoles)
 
 Note: Look at the existing route registration pattern in `cmd/server/main.go` to see how `RequirePermission` is used, and follow the same pattern exactly. The exact structure depends on how the routes are currently grouped.
 
-- [ ] **Step 5: Build backend**
+- [x] **Step 5: Build backend**
 
 ```bash
 cd /Volumes/data/personal/code/sshive && go build ./...
@@ -1112,7 +1112,7 @@ cd /Volumes/data/personal/code/sshive && go build ./...
 
 Expected: no errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/user/repo.go internal/user/service.go internal/user/handler.go cmd/server/main.go
@@ -1127,7 +1127,7 @@ git commit -m "feat: add user update/disable and GET /api/roles endpoints"
 - Modify: `frontend/src/views/UsersView.vue`
 - Create: `frontend/src/api/user.ts`
 
-- [ ] **Step 1: Create `frontend/src/api/user.ts`**
+- [x] **Step 1: Create `frontend/src/api/user.ts`**
 
 ```typescript
 // frontend/src/api/user.ts
@@ -1163,7 +1163,7 @@ export const userApi = {
 }
 ```
 
-- [ ] **Step 2: Replace `UsersView.vue` with full implementation**
+- [x] **Step 2: Replace `UsersView.vue` with full implementation**
 
 ```vue
 <!-- frontend/src/views/UsersView.vue -->
@@ -1325,7 +1325,7 @@ onMounted(() => {
 </style>
 ```
 
-- [ ] **Step 3: Build frontend**
+- [x] **Step 3: Build frontend**
 
 ```bash
 cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | grep -E "error|Error" | head -20
@@ -1333,7 +1333,7 @@ cd /Volumes/data/personal/code/sshive/frontend && npm run build 2>&1 | grep -E "
 
 Expected: no errors.
 
-- [ ] **Step 4: Build full binary**
+- [x] **Step 4: Build full binary**
 
 ```bash
 cd /Volumes/data/personal/code/sshive && npm run build --prefix frontend && go build ./...
@@ -1341,7 +1341,7 @@ cd /Volumes/data/personal/code/sshive && npm run build --prefix frontend && go b
 
 Expected: no errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/api/user.ts frontend/src/views/UsersView.vue
@@ -1352,14 +1352,14 @@ git commit -m "feat: full user management UI with create/edit/disable and role a
 
 ## Final Steps
 
-- [ ] **Build full binary and run smoke test**
+- [x] **Build full binary and run smoke test**
 
 ```bash
 cd /Volumes/data/personal/code/sshive/frontend && npm run build
 cd /Volumes/data/personal/code/sshive && go build -o sshive ./cmd/server && echo "build ok"
 ```
 
-- [ ] **Final commit and push**
+- [x] **Final commit and push**
 
 ```bash
 git log --oneline -8
