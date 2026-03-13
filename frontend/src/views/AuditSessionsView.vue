@@ -57,7 +57,7 @@ const replayReady = ref(false)
 const playerContainer = ref<HTMLElement>()
 
 function formatTime(ts: string) {
-  return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false })
+  return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 async function openCommands(row: any) {
