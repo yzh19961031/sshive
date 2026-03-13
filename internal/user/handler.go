@@ -75,6 +75,10 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	if err := h.svc.UpdateUser(tenantID, userID, req); err != nil {
+		if err.Error() == "user not found" {
+			middleware.NotFound(c, err.Error())
+			return
+		}
 		middleware.InternalError(c, err.Error())
 		return
 	}
@@ -89,6 +93,10 @@ func (h *Handler) Disable(c *gin.Context) {
 		return
 	}
 	if err := h.svc.DisableUser(tenantID, userID); err != nil {
+		if err.Error() == "user not found" {
+			middleware.NotFound(c, err.Error())
+			return
+		}
 		middleware.InternalError(c, err.Error())
 		return
 	}

@@ -99,14 +99,20 @@ async function save() {
     }
     modalVisible.value = false
     loadPage(pagination.value.page)
+  } catch (e) {
+    console.error('Save user failed:', e)
   } finally {
     saving.value = false
   }
 }
 
 async function disableUser(id: number) {
-  await userApi.disable(id)
-  loadPage(pagination.value.page)
+  try {
+    await userApi.disable(id)
+    loadPage(pagination.value.page)
+  } catch (e) {
+    console.error('Disable user failed:', e)
+  }
 }
 
 const columns = [
