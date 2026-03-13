@@ -43,8 +43,8 @@ func (r *Repo) ListSessions(tenantID int64, page, pageSize int) ([]SessionListIt
 		       COALESCE(h.name, '') AS host_name,
 		       COALESCE(u.username, '') AS username
 		FROM sessions s
-		LEFT JOIN hosts h ON h.id = s.host_id
-		LEFT JOIN users u ON u.id = s.user_id
+		LEFT JOIN hosts h ON h.id = s.host_id AND h.tenant_id = s.tenant_id
+		LEFT JOIN users u ON u.id = s.user_id AND u.tenant_id = s.tenant_id
 		WHERE s.tenant_id = ?
 		ORDER BY s.started_at DESC
 		LIMIT ? OFFSET ?

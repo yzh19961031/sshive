@@ -103,6 +103,7 @@ func main() {
 
 	// 统计数据
 	statsH := stats.NewHandler()
+	// /stats 返回当前租户的聚合统计，登录即可访问（无需特定权限）
 	authed.GET("/stats", statsH.Get)
 
 	// WebSSH
