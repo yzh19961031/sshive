@@ -9,7 +9,8 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
     children: [
-      { path: '', redirect: '/hosts' },
+      { path: '', redirect: '/dashboard' },
+      { path: 'dashboard', component: () => import('@/views/DashboardView.vue') },
       { path: 'hosts', component: () => import('@/views/HostListView.vue') },
       { path: 'terminal', component: () => import('@/views/TerminalView.vue') },
       { path: 'sftp/:hostId', component: () => import('@/views/SftpView.vue') },
@@ -20,7 +21,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'settings/profile', component: () => import('@/views/ProfileView.vue') },
     ]
   },
-  { path: '/:pathMatch(.*)*', redirect: '/hosts' }
+  { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
 ]
 
 export const router = createRouter({

@@ -80,8 +80,9 @@ const navGroups = [
   {
     label: '运维',
     items: [
-      { path: '/hosts',    icon: '⬡', label: '主机列表' },
-      { path: '/terminal', icon: '⌨', label: 'Terminal' },
+      { path: '/dashboard', icon: '📊', label: '仪表盘' },
+      { path: '/hosts',     icon: '⬡',  label: '主机列表' },
+      { path: '/terminal',  icon: '⌨',  label: 'Terminal' },
     ],
   },
   {

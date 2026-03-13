@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(username: string, password: string, tenantId: number) {
     const res = await authApi.login({ username, password, tenant_id: tenantId })
     setToken(res.data.data.token)
-    router.push('/hosts')
+    router.push('/dashboard')
   }
 
   async function logout() {
