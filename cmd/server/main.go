@@ -19,8 +19,8 @@ import (
 	"github.com/sshive/sshive/internal/dangerrule"
 	"github.com/sshive/sshive/internal/db"
 	"github.com/sshive/sshive/internal/host"
-	sshmodule "github.com/sshive/sshive/internal/ssh"
 	sftpmodule "github.com/sshive/sshive/internal/sftp"
+	sshmodule "github.com/sshive/sshive/internal/ssh"
 	"github.com/sshive/sshive/internal/tenant"
 	"github.com/sshive/sshive/internal/user"
 	"github.com/sshive/sshive/web"
@@ -52,6 +52,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := db.Seed(); err != nil {
+		slog.Error("seed failed", "err", err)
+		os.Exit(1)
+	}
+
 	r := gin.Default()
 
 	api := r.Group("/api")
@@ -61,6 +66,8 @@ func main() {
 	authed.POST("/auth/logout", auth.LogoutHandler(config.C.JWTSecret))
 
 	th := tenant.NewHandler()
+	// 公开接口：供登录页获取租户列表（无需认证）
+	api.GET("/tenants/public", th.ListPublic)
 	authed.GET("/tenants", auth.RequirePermission("tenant:manage"), th.List)
 	authed.POST("/tenants", auth.RequirePermission("tenant:manage"), th.Create)
 

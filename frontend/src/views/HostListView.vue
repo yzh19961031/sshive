@@ -10,7 +10,7 @@
           <button :class="['toggle-btn', viewMode === 'card' && 'active']" @click="viewMode = 'card'">⊞</button>
           <button :class="['toggle-btn', viewMode === 'list' && 'active']" @click="viewMode = 'list'">☰</button>
         </div>
-        <n-button type="primary" size="small" @click="showAddModal = true">+ 添加主机</n-button>
+        <n-button type="primary" size="small" @click="openAddModal">+ 添加主机</n-button>
       </div>
     </div>
 
@@ -37,6 +37,7 @@
                 <div class="card-actions">
                   <n-button size="tiny" type="primary" @click="connectSSH(host)">SSH</n-button>
                   <n-button size="tiny" @click="connectSFTP(host)">SFTP</n-button>
+                  <n-button size="tiny" type="error" @click="deleteHost(host)">删除</n-button>
                 </div>
               </div>
             </div>
@@ -49,6 +50,7 @@
                 <div class="list-actions">
                   <n-button size="tiny" type="primary" @click="connectSSH(host)">SSH</n-button>
                   <n-button size="tiny" @click="connectSFTP(host)">SFTP</n-button>
+                  <n-button size="tiny" type="error" @click="deleteHost(host)">删除</n-button>
                 </div>
               </div>
             </div>
@@ -56,15 +58,56 @@
         </transition>
       </div>
     </div>
-    <n-empty v-else description="暂无主机" style="margin-top: 60px" />
+    <n-empty v-else description="暂无主机，点击右上角添加" style="margin-top: 60px" />
+
+    <!-- Add Host Modal -->
+    <n-modal v-model:show="showAddModal" preset="card" title="添加主机" style="width: 520px" :mask-closable="false">
+      <n-form ref="addFormRef" :model="addForm" :rules="addRules" label-placement="left" label-width="80">
+        <n-form-item label="主机名称" path="name">
+          <n-input v-model:value="addForm.name" placeholder="例如：生产-Web-01" />
+        </n-form-item>
+        <n-form-item label="IP 地址" path="ip">
+          <n-input v-model:value="addForm.ip" placeholder="192.168.1.100" />
+        </n-form-item>
+        <n-form-item label="端口" path="port">
+          <n-input-number v-model:value="addForm.port" :min="1" :max="65535" style="width:100%" />
+        </n-form-item>
+        <n-form-item label="认证方式" path="auth_type">
+          <n-select
+            v-model:value="addForm.auth_type"
+            :options="authTypeOptions"
+            @update:value="addForm.credential_id = null"
+          />
+        </n-form-item>
+        <n-form-item label="凭据" path="credential_id">
+          <n-select
+            v-model:value="addForm.credential_id"
+            :options="credentialOptions"
+            :loading="loadingCredentials"
+            placeholder="选择凭据"
+          />
+        </n-form-item>
+        <n-form-item label="标签" path="tags">
+          <n-dynamic-tags v-model:value="addForm.tags" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <p v-if="hostError" style="color:var(--danger);font-size:12px;margin:0 0 8px">{{ hostError }}</p>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <n-button @click="showAddModal = false">取消</n-button>
+          <n-button type="primary" :loading="saving" @click="submitAddHost">确认添加</n-button>
+        </div>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NInput, NEmpty } from 'naive-ui'
+import { NButton, NInput, NEmpty, NModal, NForm, NFormItem, NSelect, NInputNumber, NDynamicTags } from 'naive-ui'
 import { hostApi, type Host } from '@/api/host'
+import { credentialApi, type Credential } from '@/api/credential'
 
 const router = useRouter()
 const hosts = ref<Host[]>([])
@@ -73,10 +116,114 @@ const viewMode = ref<'card' | 'list'>('card')
 const showAddModal = ref(false)
 const collapsed = reactive<Record<string, boolean>>({})
 
-onMounted(async () => {
+// Credentials
+const credentials = ref<Credential[]>([])
+const loadingCredentials = ref(false)
+
+const credentialOptions = computed(() =>
+  credentials.value.map(c => ({
+    label: `${c.name} (${c.type === 'password' ? '密码' : '密钥'} / ${c.username})`,
+    value: c.id,
+  }))
+)
+
+const authTypeOptions = [
+  { label: '密码认证', value: 'password' },
+  { label: '密钥认证', value: 'key' },
+]
+
+// Add form
+const addFormRef = ref()
+const addForm = reactive({
+  name: '',
+  ip: '',
+  port: 22,
+  auth_type: 'password' as 'password' | 'key',
+  credential_id: null as number | null,
+  tags: [] as string[],
+})
+const saving = ref(false)
+const hostError = ref('')
+
+const addRules = {
+  name: [{ required: true, message: '请输入主机名称', trigger: 'blur' }],
+  ip: [
+    { required: true, message: '请输入 IP 地址', trigger: 'blur' },
+    { pattern: /^(\d{1,3}\.){3}\d{1,3}$/, message: '请输入有效的 IP 地址', trigger: 'blur' },
+  ],
+  port: [{ required: true, type: 'number' as const, message: '请输入端口' }],
+  auth_type: [{ required: true, message: '请选择认证方式' }],
+  credential_id: [{ required: true, type: 'number' as const, message: '请选择凭据' }],
+}
+
+async function loadHosts() {
   const res = await hostApi.list({ page: 1, page_size: 100 })
   hosts.value = res.data.data?.list ?? []
+}
+
+async function loadCredentials() {
+  loadingCredentials.value = true
+  try {
+    const res = await credentialApi.list({ page: 1, page_size: 100 })
+    credentials.value = res.data.data?.list ?? []
+  } finally {
+    loadingCredentials.value = false
+  }
+}
+
+onMounted(() => {
+  loadHosts()
+  loadCredentials()
 })
+
+function openAddModal() {
+  addForm.name = ''
+  addForm.ip = ''
+  addForm.port = 22
+  addForm.auth_type = 'password'
+  addForm.credential_id = null
+  addForm.tags = []
+  showAddModal.value = true
+}
+
+async function submitAddHost() {
+  try {
+    await addFormRef.value?.validate()
+  } catch {
+    return
+  }
+  if (!addForm.credential_id) return
+
+  saving.value = true
+  try {
+    await hostApi.create({
+      name: addForm.name,
+      ip: addForm.ip,
+      port: addForm.port,
+      auth_type: addForm.auth_type,
+      credential_id: addForm.credential_id,
+      status: 1,
+      tags: addForm.tags,
+    })
+    showAddModal.value = false
+    await loadHosts()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    hostError.value = err.response?.data?.message ?? '添加失败'
+  } finally {
+    saving.value = false
+  }
+}
+
+async function deleteHost(host: Host) {
+  if (!confirm(`确认删除主机「${host.name}」？`)) return
+  try {
+    await hostApi.delete(host.id)
+    await loadHosts()
+  } catch {
+    hostError.value = '删除失败'
+  }
+}
 
 const filteredHosts = computed(() =>
   hosts.value.filter(h =>
@@ -86,7 +233,6 @@ const filteredHosts = computed(() =>
   )
 )
 
-// Group by first tag (no tag → "未分组")
 const groupedHosts = computed(() => {
   const map = new Map<string, Host[]>()
   for (const h of filteredHosts.value) {
@@ -102,7 +248,7 @@ function toggleGroup(label: string) {
 }
 
 function connectSSH(host: Host) {
-  const sessions: any[] = JSON.parse(sessionStorage.getItem('pendingSSH') ?? '[]')
+  const sessions: { hostId: number; hostName: string }[] = JSON.parse(sessionStorage.getItem('pendingSSH') ?? '[]')
   sessions.push({ hostId: host.id, hostName: host.name })
   sessionStorage.setItem('pendingSSH', JSON.stringify(sessions))
   router.push('/terminal')

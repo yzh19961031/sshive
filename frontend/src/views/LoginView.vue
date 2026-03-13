@@ -8,15 +8,27 @@
         <p class="brand-sub">运维审计平台</p>
       </div>
       <n-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin">
-        <n-form-item label="租户 ID" path="tenantId">
-          <n-input-number v-model:value="form.tenantId" :min="1" placeholder="1" style="width:100%" />
+        <n-form-item label="租户" path="tenantId">
+          <n-select
+            v-model:value="form.tenantId"
+            :options="tenantOptions"
+            :loading="loadingTenants"
+            placeholder="请选择租户"
+            value-field="value"
+            label-field="label"
+          />
         </n-form-item>
         <n-form-item label="用户名" path="username">
           <n-input v-model:value="form.username" placeholder="admin" />
         </n-form-item>
         <n-form-item label="密码" path="password">
-          <n-input v-model:value="form.password" type="password" placeholder="••••••••"
-            show-password-on="click" @keydown.enter="handleLogin" />
+          <n-input
+            v-model:value="form.password"
+            type="password"
+            placeholder="••••••••"
+            show-password-on="click"
+            @keydown.enter="handleLogin"
+          />
         </n-form-item>
         <n-button type="primary" block :loading="loading" @click="handleLogin">
           登录
@@ -28,27 +40,54 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { NForm, NFormItem, NInput, NInputNumber, NButton } from 'naive-ui'
+import { ref, onMounted } from 'vue'
+import { NForm, NFormItem, NInput, NSelect, NButton } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
+import { authApi } from '@/api/auth'
 
 const auth = useAuthStore()
-const form = ref({ tenantId: 1, username: '', password: '' })
+const form = ref({ tenantId: null as number | null, username: '', password: '' })
 const loading = ref(false)
+const loadingTenants = ref(false)
 const error = ref('')
 
+interface SelectOption { label: string; value: number }
+const tenantOptions = ref<SelectOption[]>([])
+
+onMounted(async () => {
+  loadingTenants.value = true
+  try {
+    const res = await authApi.listTenantsPublic()
+    const list: { id: number; name: string }[] = res.data.data ?? []
+    tenantOptions.value = list.map(t => ({ label: t.name, value: t.id }))
+    if (tenantOptions.value.length === 1 && tenantOptions.value[0]) {
+      form.value.tenantId = tenantOptions.value[0].value
+    }
+  } catch {
+    // ignore, user can retry
+  } finally {
+    loadingTenants.value = false
+  }
+})
+
 const rules = {
+  tenantId: [{ required: true, type: 'number' as const, message: '请选择租户' }],
   username: [{ required: true, message: '请输入用户名' }],
   password: [{ required: true, message: '请输入密码' }],
 }
 
 async function handleLogin() {
+  if (!form.value.tenantId) {
+    error.value = '请选择租户'
+    return
+  }
   error.value = ''
   loading.value = true
   try {
     await auth.login(form.value.username, form.value.password, form.value.tenantId)
-  } catch (e: any) {
-    error.value = e.response?.data?.message ?? '登录失败'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    error.value = err.response?.data?.message ?? '登录失败'
   } finally {
     loading.value = false
   }

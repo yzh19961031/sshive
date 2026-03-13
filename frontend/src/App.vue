@@ -20,8 +20,8 @@ const naiveTheme = computed(() =>
 
 const themeOverrides = computed(() => ({
   common: {
-    primaryColor: 'var(--accent)',
-    primaryColorHover: 'var(--accent-hover)',
+    primaryColor: '#409eff',
+    primaryColorHover: '#60a5fa',
   }
 }))
 </script>

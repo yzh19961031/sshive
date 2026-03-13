@@ -16,7 +16,7 @@ export interface Host {
 export const hostApi = {
   list: (params?: { page?: number; page_size?: number }) =>
     http.get<{ data: { total: number; list: Host[] } }>('/hosts', { params }),
-  create: (data: Omit<Host, 'id' | 'created_at'>) =>
+  create: (data: Omit<Host, 'id' | 'created_at' | 'tenant_id'>) =>
     http.post<{ data: Host }>('/hosts', data),
   update: (id: number, data: Partial<Host>) =>
     http.put<{ data: Host }>(`/hosts/${id}`, data),
