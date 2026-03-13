@@ -11,6 +11,15 @@
         <button class="tab-close" @click.stop="closeTab(tab.id)">×</button>
       </div>
       <div class="tab-actions">
+        <n-select
+          :value="termTheme.currentId"
+          :options="themeOptions"
+          size="small"
+          style="width:140px"
+          @update:value="applyTerminalTheme"
+        />
+        <button class="split-btn" @click="copySelection" title="复制选中内容">⎘</button>
+        <button class="split-btn" @click="showHostPicker = true" title="新开终端">＋</button>
         <button class="split-btn" :class="{ active: splitMode }" @click="toggleSplit" title="分屏">⊞</button>
       </div>
     </div>
@@ -22,17 +31,35 @@
         :ref="el => setPaneRef(el as HTMLElement, i)">
       </div>
     </div>
+
+    <!-- 主机选择 Modal -->
+    <n-modal v-model:show="showHostPicker" preset="card" title="选择主机" style="width:480px">
+      <div v-if="hostPickerLoading" style="text-align:center;padding:20px"><n-spin /></div>
+      <div v-else class="host-picker-list">
+        <div v-for="h in pickerHosts" :key="h.id"
+          class="picker-row" @click="pickHost(h)">
+          <span class="picker-dot" />
+          <span class="picker-name">{{ h.name }}</span>
+          <span class="picker-ip">{{ h.ip }}:{{ h.port }}</span>
+        </div>
+      </div>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { NSelect, NModal, NSpin } from 'naive-ui'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { useAuthStore } from '@/stores/auth'
+import { hostApi } from '@/api/host'
+import { useTerminalThemeStore } from '@/stores/terminalTheme'
 
 const auth = useAuthStore()
+const termTheme = useTerminalThemeStore()
+const themeOptions = termTheme.themes.map(t => ({ label: t.name, value: t.id }))
 
 interface Tab {
   id: string
@@ -56,6 +83,43 @@ const displayTabs = computed(() =>
 
 function setPaneRef(el: HTMLElement | null, i: number) {
   if (el) paneRefs[i] = el
+}
+
+function applyTerminalTheme(id: string) {
+  termTheme.apply(id)
+  const newTheme = termTheme.current().theme
+  tabs.value.forEach(tab => {
+    if (tab.term) tab.term.options.theme = newTheme
+  })
+}
+
+// 复制选中文本
+function copySelection() {
+  const activeT = tabs.value.find(t => t.id === activeTab.value)
+  if (!activeT?.term) return
+  const sel = activeT.term.getSelection()
+  if (sel) navigator.clipboard.writeText(sel)
+}
+
+// 主机选择器
+const showHostPicker = ref(false)
+const hostPickerLoading = ref(false)
+const pickerHosts = ref<any[]>([])
+
+watch(showHostPicker, async (v) => {
+  if (!v) return
+  hostPickerLoading.value = true
+  try {
+    const res = await hostApi.list({ page: 1, page_size: 100 })
+    pickerHosts.value = res.data.data?.list ?? []
+  } finally {
+    hostPickerLoading.value = false
+  }
+})
+
+function pickHost(h: any) {
+  showHostPicker.value = false
+  openTab(h.id, h.name)
 }
 
 onMounted(async () => {
@@ -85,7 +149,7 @@ async function initTerminal(tab: Tab) {
   if (!container) return
 
   const term = new Terminal({
-    theme: { background: 'var(--terminal-bg)', foreground: 'var(--terminal-fg)' },
+    theme: termTheme.current().theme,
     fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
     fontSize: 14,
     cursorBlink: true,
@@ -168,10 +232,17 @@ onUnmounted(() => {
 .tab-close { background: none; border: none; color: inherit; cursor: pointer;
   padding: 0 2px; opacity: 0.5; font-size: 14px; line-height: 1; }
 .tab-close:hover { opacity: 1; color: var(--danger); }
-.tab-actions { margin-left: auto; display: flex; gap: 4px; }
+.tab-actions { margin-left: auto; display: flex; gap: 4px; align-items: center; }
 .split-btn { background: transparent; border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 13px; }
 .split-btn.active { border-color: var(--accent); color: var(--accent); }
 .terminal-area { flex: 1; overflow: hidden; display: flex; gap: 2px; background: var(--border); }
 .terminal-pane { flex: 1; overflow: hidden; background: var(--terminal-bg); }
+.host-picker-list { display: flex; flex-direction: column; gap: 4px; max-height: 400px; overflow-y: auto; }
+.picker-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 6px;
+  cursor: pointer; transition: background 0.15s; }
+.picker-row:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.picker-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+.picker-name { font-size: 13px; color: var(--text-primary); flex: 1; }
+.picker-ip { font-size: 12px; color: var(--text-secondary); }
 </style>
