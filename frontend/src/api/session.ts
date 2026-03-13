@@ -1,6 +1,14 @@
 // frontend/src/api/session.ts
 import { http } from './client'
 
+export interface LogItem {
+  id: number
+  session_id: number
+  type: 'input' | 'output'
+  content: string
+  created_at: string
+}
+
 export const sessionApi = {
   list: (params?: { page?: number; page_size?: number }) =>
     http.get('/sessions', { params }),

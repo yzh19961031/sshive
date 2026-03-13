@@ -13,11 +13,14 @@
         <div v-if="commandsLoading" style="text-align:center;padding:40px 0">
           <n-spin />
         </div>
-        <div v-else-if="commands.length === 0" class="empty-tip">暂无命令记录</div>
+        <div v-else-if="commands.length === 0" class="empty-tip">暂无日志记录</div>
         <div v-else class="cmd-list">
-          <div v-for="cmd in commands" :key="cmd.id" class="cmd-item">
-            <span class="cmd-time">{{ formatTime(cmd.created_at) }}</span>
-            <code class="cmd-text">{{ cmd.command }}</code>
+          <div v-for="log in commands" :key="log.id"
+            :class="['log-item', log.type === 'input' ? 'log-input' : 'log-output']">
+            <span class="log-time">{{ formatTime(log.created_at) }}</span>
+            <code class="log-content">
+              <span v-if="log.type === 'input'" class="log-prefix">❯ </span>{{ log.content }}
+            </code>
           </div>
         </div>
       </n-drawer-content>
@@ -39,6 +42,7 @@ import { NDataTable, NButton, NTag, NDrawer, NDrawerContent, NSpin, NModal } fro
 import * as AsciinemaPlayer from 'asciinema-player'
 import 'asciinema-player/dist/bundle/asciinema-player.css'
 import { sessionApi } from '@/api/session'
+import type { LogItem } from '@/api/session'
 
 const sessions = ref<any[]>([])
 const loading = ref(false)
@@ -48,7 +52,7 @@ const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
 const drawerVisible = ref(false)
 const drawerSessionLabel = ref('')
 const commandsLoading = ref(false)
-const commands = ref<any[]>([])
+const commands = ref<LogItem[]>([])
 
 // Replay modal state
 const replayVisible = ref(false)
@@ -61,13 +65,30 @@ function formatTime(ts: string) {
   return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
+function statusTag(status: string): 'success' | 'warning' | 'default' | 'error' {
+  const map: Record<string, 'success' | 'warning' | 'default' | 'error'> = {
+    active: 'success',
+    interrupted: 'warning',
+    closed: 'default',
+  }
+  return map[status] ?? 'default'
+}
+
+function formatDuration(row: any): string {
+  const end = row.ended_at ? new Date(row.ended_at) : new Date()
+  const diff = Math.floor((end.getTime() - new Date(row.started_at).getTime()) / 1000)
+  if (diff < 60) return `${diff}s`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ${diff % 60}s`
+  return `${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m`
+}
+
 async function openCommands(row: any) {
   drawerSessionLabel.value = `${row.host_name || row.host_id} · ${row.username || row.user_id}`
   drawerVisible.value = true
   commandsLoading.value = true
   commands.value = []
   try {
-    const res = await sessionApi.getCommands(row.id, { page: 1, page_size: 100 })
+    const res = await sessionApi.getLogs(row.id, { page: 1, page_size: 200 })
     commands.value = res.data.data?.list ?? []
   } finally {
     commandsLoading.value = false
@@ -91,20 +112,29 @@ async function openReplay(row: any) {
 }
 
 const columns = [
-  { title: '主机', key: 'host_name', render: (row: any) => row.host_name || String(row.host_id) },
-  { title: '用户', key: 'username', render: (row: any) => row.username || String(row.user_id) },
-  { title: '客户端 IP', key: 'client_ip', width: 140 },
+  { title: '主机', key: 'host_name', ellipsis: { tooltip: true },
+    render: (row: any) => row.host_name || String(row.host_id) },
+  { title: '用户', key: 'username', width: 100,
+    render: (row: any) => row.username || String(row.user_id) },
+  { title: '客户端 IP', key: 'client_ip', width: 130 },
   {
-    title: '状态', key: 'status', width: 80,
-    render: (row: any) => h(NTag, { type: row.status === 'active' ? 'success' : 'default', size: 'small' },
+    title: '状态', key: 'status', width: 90,
+    render: (row: any) => h(NTag,
+      { type: statusTag(row.status), size: 'small', round: true },
       { default: () => row.status })
   },
-  { title: '开始时间', key: 'started_at', render: (row: any) => new Date(row.started_at).toLocaleString() },
+  { title: '时长', key: 'duration', width: 90,
+    render: (row: any) => formatDuration(row) },
+  { title: '开始时间', key: 'started_at', width: 160,
+    render: (row: any) => new Date(row.started_at).toLocaleString('zh-CN', { hour12: false }) },
   {
-    title: '操作', key: 'actions',
-    render: (row: any) => h('div', { style: 'display:flex;gap:6px' }, [
-      h(NButton, { size: 'tiny', onClick: () => openCommands(row) }, { default: () => '命令' }),
-      h(NButton, { size: 'tiny', type: 'primary', onClick: () => openReplay(row) }, { default: () => '回放' }),
+    title: '操作', key: 'actions', width: 110,
+    render: (row: any) => h('div', { style: 'display:flex;gap:4px' }, [
+      h(NButton, { size: 'tiny', quaternary: true, onClick: () => openCommands(row) },
+        { default: () => '📋 日志' }),
+      h(NButton, { size: 'tiny', quaternary: true, type: 'primary',
+        disabled: !row.cast_file_path, onClick: () => openReplay(row) },
+        { default: () => '▶ 回放' }),
     ])
   },
 ]
@@ -130,8 +160,12 @@ onMounted(() => loadPage(1))
 .page-title { margin: 0; font-size: 16px; font-weight: 600; }
 .empty-tip { color: var(--text-secondary); text-align: center; padding: 40px 0; }
 .cmd-list { display: flex; flex-direction: column; gap: 10px; }
-.cmd-item { display: flex; flex-direction: column; gap: 2px; }
-.cmd-time { font-size: 11px; color: var(--text-secondary); }
-.cmd-text { font-family: monospace; font-size: 13px; background: var(--bg-elevated); padding: 4px 8px; border-radius: 4px; word-break: break-all; white-space: pre-wrap; }
+.log-item { display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; }
+.log-time { font-size: 11px; color: var(--text-secondary); }
+.log-content { font-family: monospace; font-size: 12px; padding: 3px 8px; border-radius: 4px;
+  word-break: break-all; white-space: pre-wrap; display: block; }
+.log-input .log-content { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
+.log-output .log-content { background: var(--bg-elevated); color: var(--text-primary); }
+.log-prefix { opacity: 0.6; }
 .player-wrap { height: calc(85vh - 80px); }
 </style>
