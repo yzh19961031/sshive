@@ -1,0 +1,1 @@
+function l(e,s="default",t=[]){const r=e.$slots[s];return r===void 0?t:r()}function a(e){switch(e){case"tiny":return"mini";case"small":return"tiny";case"medium":return"small";case"large":return"medium";case"huge":return"large"}throw Error(`${e} has no smaller size.`)}export{l as g,a as s};

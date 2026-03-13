@@ -3,8 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sshive/sshive/internal/audit"
@@ -14,10 +17,11 @@ import (
 	"github.com/sshive/sshive/internal/dangerrule"
 	"github.com/sshive/sshive/internal/db"
 	"github.com/sshive/sshive/internal/host"
-	sshmodule "github.com/sshive/sshive/internal/ssh"
 	sftpmodule "github.com/sshive/sshive/internal/sftp"
+	sshmodule "github.com/sshive/sshive/internal/ssh"
 	"github.com/sshive/sshive/internal/tenant"
 	"github.com/sshive/sshive/internal/user"
+	"github.com/sshive/sshive/web"
 )
 
 func main() {
@@ -46,6 +50,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := db.Seed(); err != nil {
+		slog.Error("seed failed", "err", err)
+		os.Exit(1)
+	}
+
 	r := gin.Default()
 
 	api := r.Group("/api")
@@ -55,6 +64,8 @@ func main() {
 	authed.POST("/auth/logout", auth.LogoutHandler(config.C.JWTSecret))
 
 	th := tenant.NewHandler()
+	// 公开接口：供登录页获取租户列表（无需认证）
+	api.GET("/tenants/public", th.ListPublic)
 	authed.GET("/tenants", auth.RequirePermission("tenant:manage"), th.List)
 	authed.POST("/tenants", auth.RequirePermission("tenant:manage"), th.Create)
 
@@ -96,6 +107,35 @@ func main() {
 	// SFTP
 	sftpH := sftpmodule.NewHandler()
 	authed.GET("/ws/sftp/:hostId", auth.RequirePermission("sftp:access"), sftpH.Connect)
+
+	// Static files (frontend SPA)
+	distFS, err := fs.Sub(web.Static, "dist")
+	if err != nil {
+		slog.Error("embed fs error", "err", err)
+		os.Exit(1)
+	}
+	fileServer := http.FileServer(http.FS(distFS))
+	r.NoRoute(func(c *gin.Context) {
+		urlPath := c.Request.URL.Path
+		if strings.HasPrefix(urlPath, "/api") {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			return
+		}
+		// Check if the exact file exists; if so, serve it via http.FileServer
+		// which handles MIME types, ETags, and Range requests correctly.
+		filePath := strings.TrimPrefix(urlPath, "/")
+		if filePath == "" {
+			filePath = "index.html"
+		}
+		if f, err := distFS.Open(filePath); err == nil {
+			f.Close()
+			fileServer.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+		// SPA fallback: unknown paths → index.html
+		data, _ := fs.ReadFile(distFS, "index.html")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+	})
 
 	addr := fmt.Sprintf(":%d", config.C.Port)
 	slog.Info("server starting", "addr", addr)

@@ -17,5 +17,5 @@ type DangerEvent struct {
 	SessionID   int64     `gorm:"not null;index" json:"session_id"`
 	MatchedRule string    `gorm:"size:255;not null" json:"matched_rule"`
 	Command     string    `gorm:"type:text;not null" json:"command"`
-	TriggeredAt time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"triggered_at"`
+	TriggeredAt time.Time `gorm:"autoCreateTime" json:"triggered_at"`
 }

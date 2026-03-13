@@ -11,8 +11,13 @@ import (
 
 func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Try Authorization header first; fall back to ?token= query param (WebSocket clients
+		// cannot set custom headers, so they pass the JWT as a query parameter).
 		authHeader := c.GetHeader("Authorization")
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenStr == "" {
+			tokenStr = c.Query("token")
+		}
 		if tokenStr == "" {
 			middleware.Unauthorized(c, "missing token")
 			c.Abort()

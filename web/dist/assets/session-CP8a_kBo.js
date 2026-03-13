@@ -1,0 +1,1 @@
+import{M as o}from"./index-Ic0KOwEU.js";const i={list:s=>o.get("/sessions",{params:s}),getLogs:(s,e)=>o.get(`/sessions/${s}/logs`,{params:e}),getCommands:(s,e)=>o.get(`/sessions/${s}/commands`,{params:e}),getReplayUrl:s=>`/api/sessions/${s}/replay`};export{i as s};
