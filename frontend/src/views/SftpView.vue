@@ -31,6 +31,9 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { NButton } from 'naive-ui'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 const route = useRoute()
 const hostId = route.params.hostId as string
@@ -46,7 +49,7 @@ onMounted(() => {
 
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-  ws = new WebSocket(`${proto}//${location.host}/api/ws/sftp/${hostId}`)
+  ws = new WebSocket(`${proto}//${location.host}/api/ws/sftp/${hostId}?token=${auth.token}`)
   ws.onopen = () => listDir(currentPath.value)
   ws.onmessage = (e) => handleMessage(JSON.parse(e.data))
 }

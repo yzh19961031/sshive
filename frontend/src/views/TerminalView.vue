@@ -30,6 +30,9 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
 
 interface Tab {
   id: string
@@ -97,7 +100,7 @@ async function initTerminal(tab: Tab) {
 
   // Connect WebSocket
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const ws = new WebSocket(`${proto}//${location.host}/api/ws/ssh/${tab.hostId}`)
+  const ws = new WebSocket(`${proto}//${location.host}/api/ws/ssh/${tab.hostId}?token=${auth.token}`)
   ws.binaryType = 'arraybuffer'
   tab.ws = ws
 
