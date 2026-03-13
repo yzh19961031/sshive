@@ -31,7 +31,7 @@
         <div v-if="quickHosts.length === 0" class="empty-tip">暂无最近连接</div>
         <div v-else class="quick-grid">
           <div v-for="h in quickHosts" :key="h.host_id"
-            class="quick-card" @click="openTerminal(h.host_id)">
+            class="quick-card" @click="openTerminal(h)">
             <span class="quick-icon">⬡</span>
             <span class="quick-name">{{ h.host_name || h.host_id }}</span>
           </div>
@@ -88,8 +88,11 @@ const quickHosts = computed(() => {
   return result
 })
 
-function openTerminal(hostId: number) {
-  router.push({ path: '/terminal', query: { hostId: String(hostId) } })
+function openTerminal(host: { host_id: number; host_name: string }) {
+  sessionStorage.setItem('pendingSSH', JSON.stringify([
+    { hostId: host.host_id, hostName: host.host_name || String(host.host_id) }
+  ]))
+  router.push('/terminal')
 }
 
 async function loadData() {
