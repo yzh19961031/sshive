@@ -80,11 +80,22 @@ func (s *Session) Run(initWidth, initHeight int) error {
 	if err := sshSess.RequestPty("xterm-256color", initHeight, initWidth, modes); err != nil {
 		return fmt.Errorf("request pty: %w", err)
 	}
+
+	// 3. 获取 stdin/stdout（必须在 Shell() 启动前调用）
+	sshStdin, err := sshSess.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("stdin pipe: %w", err)
+	}
+	sshStdout, err := sshSess.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("stdout pipe: %w", err)
+	}
+
 	if err := sshSess.Shell(); err != nil {
 		return fmt.Errorf("start shell: %w", err)
 	}
 
-	// 3. 初始化审计
+	// 4. 初始化审计
 	auditResult, err := s.auditSvc.StartSession(s.tenantID, s.userID, s.host.ID, s.clientIP, initWidth, initHeight)
 	if err != nil {
 		slog.Warn("start audit session failed", "err", err)
@@ -95,16 +106,6 @@ func (s *Session) Run(initWidth, initHeight int) error {
 		asyncW = auditResult.AsyncWriter
 		castPath = auditResult.Session.CastFilePath
 		defer s.auditSvc.CloseSession(auditResult.Session.ID, asyncW, castPath)
-	}
-
-	// 4. 获取 SSH stdin/stdout
-	sshStdin, err := sshSess.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("stdin pipe: %w", err)
-	}
-	sshStdout, err := sshSess.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("stdout pipe: %w", err)
 	}
 
 	interceptor := NewInterceptor(s.tenantID)
