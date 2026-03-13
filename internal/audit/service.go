@@ -12,6 +12,21 @@ import (
 	"github.com/sshive/sshive/pkg/cast"
 )
 
+// SessionListItem 是会话列表的 API 响应类型，包含 host_name 和 username 避免前端额外请求。
+type SessionListItem struct {
+	ID           int64      `json:"id"`
+	TenantID     int64      `json:"tenant_id"`
+	UserID       int64      `json:"user_id"`
+	HostID       int64      `json:"host_id"`
+	StartedAt    time.Time  `json:"started_at"`
+	EndedAt      *time.Time `json:"ended_at"`
+	ClientIP     string     `json:"client_ip"`
+	Status       string     `json:"status"`
+	CastFilePath string     `json:"cast_file_path"`
+	HostName     string     `json:"host_name"`
+	Username     string     `json:"username"`
+}
+
 type Service struct {
 	repo *Repo
 }
@@ -59,7 +74,7 @@ func (s *Service) CloseSession(sessID int64, asyncW *AsyncWriter, castPath strin
 	_ = s.repo.CloseSession(sessID, castPath)
 }
 
-func (s *Service) ListSessions(tenantID int64, page, pageSize int) ([]model.Session, int64, error) {
+func (s *Service) ListSessions(tenantID int64, page, pageSize int) ([]SessionListItem, int64, error) {
 	if page < 1 {
 		page = 1
 	}

@@ -30,18 +30,26 @@ func (r *Repo) WriteCommand(cmd *model.SessionCommand) error {
 	return db.DB.Create(cmd).Error
 }
 
-func (r *Repo) ListSessions(tenantID int64, page, pageSize int) ([]model.Session, int64, error) {
-	var list []model.Session
+func (r *Repo) ListSessions(tenantID int64, page, pageSize int) ([]SessionListItem, int64, error) {
 	var total int64
 	offset := (page - 1) * pageSize
-	q := db.DB.Model(&model.Session{}).Where("tenant_id = ?", tenantID)
-	if err := q.Count(&total).Error; err != nil {
+	if err := db.DB.Model(&model.Session{}).Where("tenant_id = ?", tenantID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := q.Order("started_at DESC").Offset(offset).Limit(pageSize).Find(&list).Error; err != nil {
-		return nil, 0, err
-	}
-	return list, total, nil
+	var list []SessionListItem
+	err := db.DB.Raw(`
+		SELECT s.id, s.tenant_id, s.user_id, s.host_id,
+		       s.started_at, s.ended_at, s.client_ip, s.status, s.cast_file_path,
+		       COALESCE(h.name, '') AS host_name,
+		       COALESCE(u.username, '') AS username
+		FROM sessions s
+		LEFT JOIN hosts h ON h.id = s.host_id
+		LEFT JOIN users u ON u.id = s.user_id
+		WHERE s.tenant_id = ?
+		ORDER BY s.started_at DESC
+		LIMIT ? OFFSET ?
+	`, tenantID, pageSize, offset).Scan(&list).Error
+	return list, total, err
 }
 
 func (r *Repo) GetSession(tenantID, id int64) (*model.Session, error) {
