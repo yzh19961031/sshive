@@ -74,6 +74,9 @@ func main() {
 	authed.GET("/users", auth.RequirePermission("user:manage"), uh.List)
 	authed.POST("/users", auth.RequirePermission("user:manage"), uh.Create)
 	authed.PUT("/users/:id/roles", auth.RequirePermission("user:manage"), uh.AssignRoles)
+	authed.PUT("/users/:id", auth.RequirePermission("user:manage"), uh.Update)
+	authed.DELETE("/users/:id", auth.RequirePermission("user:manage"), uh.Disable)
+	authed.GET("/roles", auth.RequirePermission("user:manage"), uh.GetRoles)
 
 	// 凭据管理
 	credH := credential.NewHandler()

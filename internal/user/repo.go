@@ -48,3 +48,15 @@ func (r *Repo) SetRoles(userID int64, roleIDs []int64) error {
 		return nil
 	})
 }
+
+func (r *Repo) Update(tenantID, userID int64, fields map[string]any) error {
+	return db.DB.Model(&model.User{}).
+		Where("id = ? AND tenant_id = ?", userID, tenantID).
+		Updates(fields).Error
+}
+
+func (r *Repo) ListRoles(tenantID int64) ([]model.Role, error) {
+	var roles []model.Role
+	err := db.DB.Where("tenant_id = ?", tenantID).Find(&roles).Error
+	return roles, err
+}

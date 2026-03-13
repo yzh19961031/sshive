@@ -61,3 +61,46 @@ func (h *Handler) AssignRoles(c *gin.Context) {
 	}
 	middleware.OK(c, nil)
 }
+
+func (h *Handler) Update(c *gin.Context) {
+	tenantID := auth.GetTenantID(c.Request.Context())
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		middleware.BadRequest(c, "invalid user id")
+		return
+	}
+	var req UpdateUserReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.BadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.UpdateUser(tenantID, userID, req); err != nil {
+		middleware.InternalError(c, err.Error())
+		return
+	}
+	middleware.OK(c, nil)
+}
+
+func (h *Handler) Disable(c *gin.Context) {
+	tenantID := auth.GetTenantID(c.Request.Context())
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		middleware.BadRequest(c, "invalid user id")
+		return
+	}
+	if err := h.svc.DisableUser(tenantID, userID); err != nil {
+		middleware.InternalError(c, err.Error())
+		return
+	}
+	middleware.OK(c, nil)
+}
+
+func (h *Handler) GetRoles(c *gin.Context) {
+	tenantID := auth.GetTenantID(c.Request.Context())
+	roles, err := h.svc.ListRoles(tenantID)
+	if err != nil {
+		middleware.InternalError(c, err.Error())
+		return
+	}
+	middleware.OK(c, roles)
+}

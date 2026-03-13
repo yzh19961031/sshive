@@ -59,3 +59,36 @@ func (s *Service) AssignRoles(tenantID, userID int64, req AssignRolesReq) error 
 	}
 	return s.repo.SetRoles(userID, req.RoleIDs)
 }
+
+type UpdateUserReq struct {
+	Email  string `json:"email"`
+	Status *int8  `json:"status"`
+}
+
+func (s *Service) UpdateUser(tenantID, userID int64, req UpdateUserReq) error {
+	if _, err := s.repo.GetByID(tenantID, userID); err != nil {
+		return fmt.Errorf("user not found")
+	}
+	fields := map[string]any{}
+	if req.Email != "" {
+		fields["email"] = req.Email
+	}
+	if req.Status != nil {
+		fields["status"] = *req.Status
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return s.repo.Update(tenantID, userID, fields)
+}
+
+func (s *Service) DisableUser(tenantID, userID int64) error {
+	if _, err := s.repo.GetByID(tenantID, userID); err != nil {
+		return fmt.Errorf("user not found")
+	}
+	return s.repo.Update(tenantID, userID, map[string]any{"status": int8(2)})
+}
+
+func (s *Service) ListRoles(tenantID int64) ([]model.Role, error) {
+	return s.repo.ListRoles(tenantID)
+}
