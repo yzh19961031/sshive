@@ -19,6 +19,7 @@ import (
 	"github.com/sshive/sshive/internal/host"
 	sftpmodule "github.com/sshive/sshive/internal/sftp"
 	sshmodule "github.com/sshive/sshive/internal/ssh"
+	"github.com/sshive/sshive/internal/stats"
 	"github.com/sshive/sshive/internal/tenant"
 	"github.com/sshive/sshive/internal/user"
 	"github.com/sshive/sshive/web"
@@ -99,6 +100,10 @@ func main() {
 	authed.GET("/sessions/:id/logs", auth.RequirePermission("audit:view"), auditH.ListLogs)
 	authed.GET("/sessions/:id/commands", auth.RequirePermission("audit:view"), auditH.ListCommands)
 	authed.GET("/sessions/:id/replay", auth.RequirePermission("audit:view"), auditH.Replay)
+
+	// 统计数据
+	statsH := stats.NewHandler()
+	authed.GET("/stats", statsH.Get)
 
 	// WebSSH
 	sshH := sshmodule.NewHandler()
