@@ -12,7 +12,8 @@
       <input ref="fileInput" type="file" style="display:none" @change="uploadFile" />
     </div>
     <div class="file-list">
-      <div v-if="loading" class="loading">加载中...</div>
+      <div v-if="connError" class="conn-error">{{ connError }}</div>
+      <div v-else-if="loading" class="loading">加载中...</div>
       <div v-for="file in files" :key="file.name" class="file-row"
         @dblclick="file.is_dir ? navigate(file.name) : download(file.name)">
         <span class="file-icon">{{ file.is_dir ? '📁' : '📄' }}</span>
@@ -40,6 +41,7 @@ const hostId = route.params.hostId as string
 const currentPath = ref('/')
 const files = ref<any[]>([])
 const loading = ref(false)
+const connError = ref('')
 const fileInput = ref<HTMLInputElement>()
 let ws: WebSocket | null = null
 
@@ -59,7 +61,10 @@ function send(msg: any) {
 }
 
 function handleMessage(msg: any) {
-  if (msg.type === 'result' && msg.files) {
+  if (msg.type === 'error') {
+    connError.value = msg.message ?? '连接失败'
+    loading.value = false
+  } else if (msg.type === 'result' && msg.files) {
     files.value = msg.files.sort((a: any, b: any) =>
       (b.is_dir ? 1 : 0) - (a.is_dir ? 1 : 0) || a.name.localeCompare(b.name))
     loading.value = false
@@ -143,6 +148,7 @@ onUnmounted(() => ws?.close())
 .file-list { flex: 1; overflow-y: auto; background: var(--bg-surface);
   border: 1px solid var(--border); border-radius: 8px; }
 .loading { padding: 40px; text-align: center; color: var(--text-muted); }
+.conn-error { padding: 40px; text-align: center; color: var(--danger); font-size: 14px; }
 .file-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px;
   border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
 .file-row:last-child { border-bottom: none; }
