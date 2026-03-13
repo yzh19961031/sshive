@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"mime"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -116,31 +114,27 @@ func main() {
 		slog.Error("embed fs error", "err", err)
 		os.Exit(1)
 	}
+	fileServer := http.FileServer(http.FS(distFS))
 	r.NoRoute(func(c *gin.Context) {
-		path := c.Request.URL.Path
-		if len(path) >= 4 && path[:4] == "/api" {
+		urlPath := c.Request.URL.Path
+		if strings.HasPrefix(urlPath, "/api") {
 			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
 			return
 		}
-		// Try to serve file from embedded FS
-		filePath := strings.TrimPrefix(path, "/")
+		// Check if the exact file exists; if so, serve it via http.FileServer
+		// which handles MIME types, ETags, and Range requests correctly.
+		filePath := strings.TrimPrefix(urlPath, "/")
 		if filePath == "" {
 			filePath = "index.html"
 		}
-		data, err := fs.ReadFile(distFS, filePath)
-		if err != nil {
-			// Fall back to index.html for SPA client-side routing
-			data, _ = fs.ReadFile(distFS, "index.html")
-			c.Data(http.StatusOK, "text/html; charset=utf-8", data)
+		if f, err := distFS.Open(filePath); err == nil {
+			f.Close()
+			fileServer.ServeHTTP(c.Writer, c.Request)
 			return
 		}
-		// Determine content type by file extension
-		ext := filepath.Ext(filePath)
-		contentType := mime.TypeByExtension(ext)
-		if contentType == "" {
-			contentType = "application/octet-stream"
-		}
-		c.Data(http.StatusOK, contentType, data)
+		// SPA fallback: unknown paths → index.html
+		data, _ := fs.ReadFile(distFS, "index.html")
+		c.Data(http.StatusOK, "text/html; charset=utf-8", data)
 	})
 
 	addr := fmt.Sprintf(":%d", config.C.Port)
