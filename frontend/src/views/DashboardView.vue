@@ -46,12 +46,13 @@ import { ref, computed, h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { NDataTable, NTag } from 'naive-ui'
 import { statsApi } from '@/api/stats'
+import type { StatsData } from '@/api/stats'
 import { sessionApi } from '@/api/session'
 
 const router = useRouter()
 
 // Stats
-const stats = ref({ total_hosts: 0, today_sessions: 0, active_sessions: 0, today_danger_events: 0 })
+const stats = ref<StatsData>({ total_hosts: 0, today_sessions: 0, active_sessions: 0, today_danger_events: 0 })
 const statCards = computed(() => [
   { icon: '⬡', label: '主机总数',    value: stats.value.total_hosts },
   { icon: '💻', label: '今日会话',    value: stats.value.today_sessions },
@@ -100,6 +101,8 @@ async function loadData() {
     ])
     stats.value = statsRes.data.data ?? stats.value
     recentSessions.value = sessRes.data.data?.list ?? []
+  } catch (e) {
+    console.error('Dashboard data load failed:', e)
   } finally {
     sessionsLoading.value = false
   }

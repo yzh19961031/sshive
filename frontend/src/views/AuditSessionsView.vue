@@ -55,6 +55,7 @@ const replayVisible = ref(false)
 const replayTitle = ref('')
 const replayReady = ref(false)
 const playerContainer = ref<HTMLElement>()
+let playerInstance: any = null
 
 function formatTime(ts: string) {
   return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -81,7 +82,8 @@ async function openReplay(row: any) {
   await nextTick()
   if (!playerContainer.value) return
   playerContainer.value.innerHTML = ''
-  AsciinemaPlayer.create(
+  if (playerInstance?.dispose) playerInstance.dispose()
+  playerInstance = AsciinemaPlayer.create(
     sessionApi.getReplayUrl(row.id),
     playerContainer.value,
     { cols: 220, rows: 50, fit: 'width', theme: 'monokai' }
@@ -109,11 +111,14 @@ const columns = [
 
 async function loadPage(page: number) {
   loading.value = true
-  const res = await sessionApi.list({ page, page_size: 20 })
-  sessions.value = res.data.data?.list ?? []
-  pagination.value.itemCount = res.data.data?.total ?? 0
-  pagination.value.page = page
-  loading.value = false
+  try {
+    const res = await sessionApi.list({ page, page_size: 20 })
+    sessions.value = res.data.data?.list ?? []
+    pagination.value.itemCount = res.data.data?.total ?? 0
+    pagination.value.page = page
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => loadPage(1))
