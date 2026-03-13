@@ -23,7 +23,6 @@
         </div>
         <transition name="slide">
           <div v-if="!collapsed[group.label]">
-            <!-- Card view -->
             <div v-if="viewMode === 'card'" class="card-grid">
               <div v-for="host in group.hosts" :key="host.id" class="host-card">
                 <div class="card-header">
@@ -41,7 +40,6 @@
                 </div>
               </div>
             </div>
-            <!-- List view -->
             <div v-else class="host-list">
               <div v-for="host in group.hosts" :key="host.id" class="list-row">
                 <div :class="['status-dot', host.status === 1 ? 'online' : 'offline']" />
@@ -61,7 +59,7 @@
     <n-empty v-else description="暂无主机，点击右上角添加" style="margin-top: 60px" />
 
     <!-- Add Host Modal -->
-    <n-modal v-model:show="showAddModal" preset="card" title="添加主机" style="width: 520px" :mask-closable="false">
+    <n-modal v-model:show="showAddModal" preset="card" title="添加主机" style="width: 540px" :mask-closable="false">
       <n-form ref="addFormRef" :model="addForm" :rules="addRules" label-placement="left" label-width="80">
         <n-form-item label="主机名称" path="name">
           <n-input v-model:value="addForm.name" placeholder="例如：生产-Web-01" />
@@ -76,17 +74,60 @@
           <n-select
             v-model:value="addForm.auth_type"
             :options="authTypeOptions"
-            @update:value="addForm.credential_id = null"
+            @update:value="onAuthTypeChange"
           />
         </n-form-item>
+
+        <!-- 凭据选择 + 内联新建 -->
         <n-form-item label="凭据" path="credential_id">
-          <n-select
-            v-model:value="addForm.credential_id"
-            :options="credentialOptions"
-            :loading="loadingCredentials"
-            placeholder="选择凭据"
-          />
+          <div style="width:100%">
+            <div style="display:flex;gap:8px;align-items:center">
+              <n-select
+                v-model:value="addForm.credential_id"
+                :options="filteredCredentialOptions"
+                :loading="loadingCredentials"
+                placeholder="选择已有凭据"
+                style="flex:1"
+                clearable
+              />
+              <n-button size="small" @click="showNewCred = !showNewCred">
+                {{ showNewCred ? '收起' : '+ 新建' }}
+              </n-button>
+            </div>
+
+            <!-- 内联新建凭据表单 -->
+            <transition name="slide">
+              <div v-if="showNewCred" class="new-cred-box">
+                <div class="new-cred-title">新建凭据</div>
+                <n-form-item label="凭据名称" :show-feedback="false" style="margin-bottom:8px">
+                  <n-input v-model:value="newCred.name" placeholder="例如：root-密码" size="small" />
+                </n-form-item>
+                <n-form-item label="用户名" :show-feedback="false" style="margin-bottom:8px">
+                  <n-input v-model:value="newCred.username" placeholder="root" size="small" />
+                </n-form-item>
+                <n-form-item :label="addForm.auth_type === 'password' ? '密码' : '私钥'" :show-feedback="false" style="margin-bottom:8px">
+                  <n-input
+                    v-model:value="newCred.secret"
+                    :type="addForm.auth_type === 'password' ? 'password' : 'textarea'"
+                    :placeholder="addForm.auth_type === 'password' ? '登录密码' : '粘贴 PEM 私钥内容'"
+                    show-password-on="click"
+                    size="small"
+                    :rows="addForm.auth_type === 'key' ? 4 : 1"
+                  />
+                </n-form-item>
+                <n-button
+                  type="primary" size="small" :loading="savingCred"
+                  :disabled="!newCred.name || !newCred.username || !newCred.secret"
+                  @click="createCredential"
+                >
+                  保存凭据并选中
+                </n-button>
+                <span v-if="credError" style="margin-left:8px;color:var(--danger);font-size:12px">{{ credError }}</span>
+              </div>
+            </transition>
+          </div>
         </n-form-item>
+
         <n-form-item label="标签" path="tags">
           <n-dynamic-tags v-model:value="addForm.tags" />
         </n-form-item>
@@ -105,7 +146,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NInput, NEmpty, NModal, NForm, NFormItem, NSelect, NInputNumber, NDynamicTags } from 'naive-ui'
+import {
+  NButton, NInput, NEmpty, NModal, NForm, NFormItem,
+  NSelect, NInputNumber, NDynamicTags,
+} from 'naive-ui'
 import { hostApi, type Host } from '@/api/host'
 import { credentialApi, type Credential } from '@/api/credential'
 
@@ -116,15 +160,18 @@ const viewMode = ref<'card' | 'list'>('card')
 const showAddModal = ref(false)
 const collapsed = reactive<Record<string, boolean>>({})
 
-// Credentials
+// ── Credentials ──────────────────────────────────────────
 const credentials = ref<Credential[]>([])
 const loadingCredentials = ref(false)
 
-const credentialOptions = computed(() =>
-  credentials.value.map(c => ({
-    label: `${c.name} (${c.type === 'password' ? '密码' : '密钥'} / ${c.username})`,
-    value: c.id,
-  }))
+// 根据当前选择的 auth_type 过滤凭据
+const filteredCredentialOptions = computed(() =>
+  credentials.value
+    .filter(c => c.type === addForm.auth_type)
+    .map(c => ({
+      label: `${c.name} (${c.username})`,
+      value: c.id,
+    }))
 )
 
 const authTypeOptions = [
@@ -132,7 +179,39 @@ const authTypeOptions = [
   { label: '密钥认证', value: 'key' },
 ]
 
-// Add form
+// ── 内联新建凭据 ──────────────────────────────────────────
+const showNewCred = ref(false)
+const savingCred = ref(false)
+const credError = ref('')
+const newCred = reactive({ name: '', username: '', secret: '' })
+
+async function createCredential() {
+  if (!newCred.name || !newCred.username || !newCred.secret) return
+  credError.value = ''
+  savingCred.value = true
+  try {
+    const res = await credentialApi.create({
+      name: newCred.name,
+      type: addForm.auth_type,
+      username: newCred.username,
+      secret: newCred.secret,
+    })
+    const created = res.data.data
+    credentials.value.push(created)
+    addForm.credential_id = created.id
+    showNewCred.value = false
+    newCred.name = ''
+    newCred.username = ''
+    newCred.secret = ''
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    credError.value = err.response?.data?.message ?? '创建失败'
+  } finally {
+    savingCred.value = false
+  }
+}
+
+// ── Host form ─────────────────────────────────────────────
 const addFormRef = ref()
 const addForm = reactive({
   name: '',
@@ -153,7 +232,12 @@ const addRules = {
   ],
   port: [{ required: true, type: 'number' as const, message: '请输入端口' }],
   auth_type: [{ required: true, message: '请选择认证方式' }],
-  credential_id: [{ required: true, type: 'number' as const, message: '请选择凭据' }],
+  credential_id: [{ required: true, type: 'number' as const, message: '请选择或新建凭据' }],
+}
+
+function onAuthTypeChange() {
+  addForm.credential_id = null
+  showNewCred.value = false
 }
 
 async function loadHosts() {
@@ -183,6 +267,11 @@ function openAddModal() {
   addForm.auth_type = 'password'
   addForm.credential_id = null
   addForm.tags = []
+  hostError.value = ''
+  showNewCred.value = false
+  newCred.name = ''
+  newCred.username = ''
+  newCred.secret = ''
   showAddModal.value = true
 }
 
@@ -192,9 +281,12 @@ async function submitAddHost() {
   } catch {
     return
   }
-  if (!addForm.credential_id) return
-
+  if (!addForm.credential_id) {
+    hostError.value = '请选择或新建凭据'
+    return
+  }
   saving.value = true
+  hostError.value = ''
   try {
     await hostApi.create({
       name: addForm.name,
@@ -291,6 +383,19 @@ function connectSFTP(host: Host) {
   border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; }
 .host-ip { color: var(--text-secondary); font-size: 12px; flex: 1; }
 .list-actions { display: flex; gap: 6px; margin-left: auto; }
+.new-cred-box {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.new-cred-title {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  font-weight: 500;
+}
 .slide-enter-active, .slide-leave-active { transition: all 0.2s ease; overflow: hidden; }
 .slide-enter-from, .slide-leave-to { max-height: 0; opacity: 0; }
 .slide-enter-to, .slide-leave-from { max-height: 2000px; opacity: 1; }
