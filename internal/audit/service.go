@@ -2,6 +2,7 @@ package audit
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -65,6 +66,12 @@ func (s *Service) StartSession(tenantID, userID, hostID int64, clientIP string, 
 		return nil, fmt.Errorf("create cast writer: %w", err)
 	}
 
+	// 立即持久化 cast_file_path，避免服务重启时路径丢失
+	if err := s.repo.UpdateCastPath(sess.ID, castPath); err != nil {
+		slog.Warn("update cast path failed", "err", err, "session_id", sess.ID)
+	}
+	sess.CastFilePath = castPath
+
 	asyncW := NewAsyncWriter(sess.ID, castWriter)
 	return &StartSessionResult{Session: sess, AsyncWriter: asyncW}, nil
 }
@@ -112,4 +119,13 @@ func (s *Service) ListCommands(tenantID, sessionID int64, page, pageSize int) ([
 		pageSize = 20
 	}
 	return s.repo.ListCommands(sessionID, page, pageSize)
+}
+
+// RecoverStaleSessions 在服务启动时调用，清理因重启残留的 active 会话
+func (s *Service) RecoverStaleSessions() {
+	if err := s.repo.RecoverStaleSessions(); err != nil {
+		slog.Warn("recover stale sessions failed", "err", err)
+		return
+	}
+	slog.Info("stale sessions recovered")
 }

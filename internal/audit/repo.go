@@ -87,3 +87,18 @@ func (r *Repo) ListCommands(sessionID int64, page, pageSize int) ([]model.Sessio
 	}
 	return list, total, nil
 }
+
+func (r *Repo) UpdateCastPath(id int64, castPath string) error {
+	return db.DB.Model(&model.Session{}).Where("id = ?", id).
+		Update("cast_file_path", castPath).Error
+}
+
+func (r *Repo) RecoverStaleSessions() error {
+	now := time.Now()
+	return db.DB.Model(&model.Session{}).
+		Where("status = ? AND ended_at IS NULL", "active").
+		Updates(map[string]any{
+			"status":   "interrupted",
+			"ended_at": now,
+		}).Error
+}

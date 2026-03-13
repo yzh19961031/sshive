@@ -56,6 +56,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 清理服务重启残留的 active 会话
+	audit.NewService().RecoverStaleSessions()
+
 	r := gin.Default()
 
 	api := r.Group("/api")
