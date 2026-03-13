@@ -73,8 +73,7 @@ const currentThemeLabel = computed(() => {
 function cycleTheme() {
   const ids = themeStore.themes.map(t => t.id)
   const idx = ids.indexOf(themeStore.current)
-  const nextId = ids[(idx + 1) % ids.length]
-  if (nextId) themeStore.apply(nextId)
+  themeStore.apply(ids[(idx + 1) % ids.length]!)
 }
 
 const navGroups = [
