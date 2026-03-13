@@ -8,5 +8,8 @@ export const sessionApi = {
     http.get(`/sessions/${id}/logs`, { params }),
   getCommands: (id: number, params?: { page?: number; page_size?: number }) =>
     http.get(`/sessions/${id}/commands`, { params }),
-  getReplayUrl: (id: number) => `/api/sessions/${id}/replay`,
+  getReplayUrl: (id: number) => {
+    const token = localStorage.getItem('token') ?? ''
+    return `/api/sessions/${id}/replay?token=${encodeURIComponent(token)}`
+  },
 }
