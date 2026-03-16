@@ -121,6 +121,29 @@ func (s *Service) ListCommands(tenantID, sessionID int64, page, pageSize int) ([
 	return s.repo.ListCommands(sessionID, page, pageSize)
 }
 
+// CommandListItem 是全局命令记录列表的 API 响应类型
+type CommandListItem struct {
+	ID        int64     `json:"id"`
+	SessionID int64     `json:"session_id"`
+	Command   string    `json:"command"`
+	Action    string    `json:"action"`
+	Result    string    `json:"result"`
+	CreatedAt time.Time `json:"created_at"`
+	HostName  string    `json:"host_name"`
+	Username  string    `json:"username"`
+}
+
+// ListAllCommands 列出租户下所有会话的命令记录（全局视图）
+func (s *Service) ListAllCommands(tenantID int64, page, pageSize int) ([]CommandListItem, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	return s.repo.ListAllCommands(tenantID, page, pageSize)
+}
+
 // RecoverStaleSessions 在服务启动时调用，清理因重启残留的 active 会话
 func (s *Service) RecoverStaleSessions() {
 	if err := s.repo.RecoverStaleSessions(); err != nil {

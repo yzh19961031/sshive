@@ -9,6 +9,17 @@ export interface LogItem {
   created_at: string
 }
 
+export interface CommandItem {
+  id: number
+  session_id: number
+  command: string
+  action: 'execute' | 'blocked'
+  result: string
+  created_at: string
+  host_name: string
+  username: string
+}
+
 export const sessionApi = {
   list: (params?: { page?: number; page_size?: number }) =>
     http.get('/sessions', { params }),
@@ -20,4 +31,6 @@ export const sessionApi = {
     const token = localStorage.getItem('token') ?? ''
     return `/api/sessions/${id}/replay?token=${encodeURIComponent(token)}`
   },
+  listAllCommands: (params?: { page?: number; page_size?: number }) =>
+    http.get('/commands', { params }),
 }

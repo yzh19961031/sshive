@@ -88,6 +88,29 @@ func (r *Repo) ListCommands(sessionID int64, page, pageSize int) ([]model.Sessio
 	return list, total, nil
 }
 
+func (r *Repo) ListAllCommands(tenantID int64, page, pageSize int) ([]CommandListItem, int64, error) {
+	var total int64
+	offset := (page - 1) * pageSize
+	if err := db.DB.Model(&model.SessionCommand{}).
+		Joins("JOIN sessions ON sessions.id = session_commands.session_id AND sessions.tenant_id = ?", tenantID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var list []CommandListItem
+	err := db.DB.Raw(`
+		SELECT sc.id, sc.session_id, sc.command, sc.action, sc.result, sc.created_at,
+		       COALESCE(h.name, '') AS host_name,
+		       COALESCE(u.username, '') AS username
+		FROM session_commands sc
+		JOIN sessions s ON s.id = sc.session_id AND s.tenant_id = ?
+		LEFT JOIN hosts h ON h.id = s.host_id AND h.tenant_id = s.tenant_id
+		LEFT JOIN users u ON u.id = s.user_id AND u.tenant_id = s.tenant_id
+		ORDER BY sc.created_at DESC
+		LIMIT ? OFFSET ?
+	`, tenantID, pageSize, offset).Scan(&list).Error
+	return list, total, err
+}
+
 func (r *Repo) UpdateCastPath(id int64, castPath string) error {
 	return db.DB.Model(&model.Session{}).Where("id = ?", id).
 		Update("cast_file_path", castPath).Error

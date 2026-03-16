@@ -106,6 +106,7 @@ const navGroups = [
     label: '安全',
     items: [
       { path: '/audit/sessions',  icon: '📋', label: '审计日志' },
+      { path: '/audit/commands',  icon: '⌫',  label: '命令管控' },
       { path: '/settings/rules',  icon: '⚠', label: '高危规则' },
     ],
   },

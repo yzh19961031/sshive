@@ -114,6 +114,7 @@ func main() {
 	authed.GET("/sessions/:id/logs", auth.RequirePermission("audit:view"), auditH.ListLogs)
 	authed.GET("/sessions/:id/commands", auth.RequirePermission("audit:view"), auditH.ListCommands)
 	authed.GET("/sessions/:id/replay", auth.RequirePermission("audit:view"), auditH.Replay)
+	authed.GET("/commands", auth.RequirePermission("audit:view"), auditH.ListAllCommands)
 
 	// 统计数据
 	statsH := stats.NewHandler()

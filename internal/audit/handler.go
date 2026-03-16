@@ -63,6 +63,18 @@ func (h *Handler) ListCommands(c *gin.Context) {
 	middleware.OK(c, gin.H{"total": total, "list": list})
 }
 
+func (h *Handler) ListAllCommands(c *gin.Context) {
+	tenantID := auth.GetTenantID(c.Request.Context())
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	list, total, err := h.svc.ListAllCommands(tenantID, page, pageSize)
+	if err != nil {
+		middleware.InternalError(c, err.Error())
+		return
+	}
+	middleware.OK(c, gin.H{"total": total, "list": list})
+}
+
 func (h *Handler) Replay(c *gin.Context) {
 	tenantID := auth.GetTenantID(c.Request.Context())
 	sessionID, err := strconv.ParseInt(c.Param("id"), 10, 64)

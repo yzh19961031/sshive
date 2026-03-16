@@ -26,6 +26,7 @@ type SessionCommand struct {
 	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID int64     `gorm:"not null;index" json:"session_id"`
 	Command   string    `gorm:"type:text;not null" json:"command"`
+	Action    string    `gorm:"size:10;not null;default:execute" json:"action"` // execute / blocked
 	Result    string    `gorm:"type:mediumtext" json:"result"`
 	CreatedAt time.Time `gorm:"precision:3;default:CURRENT_TIMESTAMP(3)" json:"created_at"`
 }

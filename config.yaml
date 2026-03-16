@@ -1,0 +1,11 @@
+db:
+  dsn: "root:qq@123456@tcp(10.3.240.106:3306)/sshive?parseTime=true"
+
+redis:
+  addr: "10.3.240.152:16379"
+  password: "M^redis963."
+
+encrypt_key: "s5b5vF1vZ9Qq2qzF+J4o9u4oGQ4cG2q1W8e2s9kVx0o="
+jwt_secret: "c2f7a0f0a4e84a33b6d0d7d8e0a8e6d9"
+cast_dir: "/Volumes/data/sshive/cast"
+port: 8080

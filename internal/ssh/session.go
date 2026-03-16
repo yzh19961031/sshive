@@ -127,8 +127,8 @@ func (s *Session) Run(initWidth, initHeight int) error {
 					asyncW.SendOutput(data)
 					// 尝试提取当前命令的完整输出结果
 					if cmd, result, ok := tracker.FeedOutput(data); ok {
-						asyncW.SendCommand(cmd, result)
-					}
+					asyncW.SendCommand(cmd, result, "execute")
+				}
 				}
 			}
 			if err != nil {
@@ -170,7 +170,7 @@ func (s *Session) Run(initWidth, initHeight int) error {
 		if result.Blocked {
 			_ = s.ws.WriteMessage(websocket.BinaryMessage, []byte(blockMsg))
 			if asyncW != nil {
-				asyncW.SendCommand("[BLOCKED] "+result.Command, "")
+				asyncW.SendCommand(result.Command, "", "blocked")
 			}
 			if auditResult != nil {
 				go writeDangerEvent(auditResult.Session.ID, result.Command, result.MatchedRule)

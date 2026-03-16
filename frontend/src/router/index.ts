@@ -16,6 +16,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'terminal', component: () => import('@/views/TerminalView.vue') },
       { path: 'sftp/:hostId', component: () => import('@/views/SftpView.vue') },
       { path: 'audit/sessions', component: () => import('@/views/AuditSessionsView.vue') },
+      { path: 'audit/commands', component: () => import('@/views/CommandRecordsView.vue') },
       { path: 'audit/replay/:id', component: () => import('@/views/AuditReplayView.vue') },
       { path: 'settings/rules', component: () => import('@/views/DangerRulesView.vue') },
       { path: 'settings/users', component: () => import('@/views/UsersView.vue') },
