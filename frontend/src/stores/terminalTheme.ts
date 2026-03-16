@@ -139,6 +139,46 @@ export const TERMINAL_THEMES: TerminalThemeDef[] = [
       brightCyan: '#70c0b1', brightWhite: '#eaeaea',
     },
   },
+  // ── 浅色主题 ──
+  {
+    id: 'github-light',
+    name: 'GitHub 浅色',
+    theme: {
+      background: '#ffffff', foreground: '#24292e', cursor: '#044289',
+      selectionBackground: '#c8c8fa',
+      black: '#24292e', red: '#d73a49', green: '#22863a', yellow: '#b08800',
+      blue: '#005cc5', magenta: '#6f42c1', cyan: '#032f62', white: '#6a737d',
+      brightBlack: '#959da5', brightRed: '#cb2431', brightGreen: '#28a745',
+      brightYellow: '#dbab09', brightBlue: '#0366d6', brightMagenta: '#8a63d2',
+      brightCyan: '#006b75', brightWhite: '#586069',
+    },
+  },
+  {
+    id: 'papercolor-light',
+    name: '纸色 浅色',
+    theme: {
+      background: '#eeeeee', foreground: '#444444', cursor: '#005f87',
+      selectionBackground: '#d0d0d0',
+      black: '#eeeeee', red: '#af0000', green: '#008700', yellow: '#5f8700',
+      blue: '#0087af', magenta: '#878787', cyan: '#005f87', white: '#444444',
+      brightBlack: '#bcbcbc', brightRed: '#d70000', brightGreen: '#d70087',
+      brightYellow: '#8700af', brightBlue: '#d75f00', brightMagenta: '#d75f00',
+      brightCyan: '#005faf', brightWhite: '#005f87',
+    },
+  },
+  {
+    id: 'intellij-light',
+    name: 'IntelliJ 浅色',
+    theme: {
+      background: '#f5f5f5', foreground: '#1e1e1e', cursor: '#000000',
+      selectionBackground: '#c5d7f0',
+      black: '#1e1e1e', red: '#c00000', green: '#007c00', yellow: '#7a6e00',
+      blue: '#0000c0', magenta: '#8000ff', cyan: '#007c7c', white: '#a9a9a9',
+      brightBlack: '#707070', brightRed: '#d44949', brightGreen: '#008b00',
+      brightYellow: '#ab9600', brightBlue: '#0000ff', brightMagenta: '#a033ff',
+      brightCyan: '#0099cc', brightWhite: '#ffffff',
+    },
+  },
 ]
 
 export const useTerminalThemeStore = defineStore('terminalTheme', () => {

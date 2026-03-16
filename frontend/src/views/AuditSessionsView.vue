@@ -28,28 +28,22 @@
     </n-drawer>
 
     <!-- 回放 Modal -->
-    <n-modal v-model:show="replayVisible" :mask-closable="true">
-      <n-card
-        :title="replayTitle"
-        style="width:min(92vw,1100px)"
-        :bordered="false"
-        size="small"
-        role="dialog"
-        content-style="padding:16px;overflow:visible"
-      >
-        <template #header-extra>
-          <n-button quaternary circle size="small" @click="replayVisible = false">✕</n-button>
-        </template>
-        <div v-if="!replayReady" class="empty-tip">录像暂不可用</div>
+    <n-modal v-model:show="replayVisible" :mask-closable="true" display-directive="show">
+      <div class="replay-dialog">
+        <div class="replay-header">
+          <span class="replay-title">{{ replayTitle }}</span>
+          <button class="replay-close" @click="replayVisible = false">✕</button>
+        </div>
+        <div v-if="!replayReady" class="empty-tip" style="padding:60px 0">录像暂不可用</div>
         <div v-else ref="playerContainer" class="player-wrap" />
-      </n-card>
+      </div>
     </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, h, onMounted, nextTick } from 'vue'
-import { NDataTable, NButton, NTag, NDrawer, NDrawerContent, NSpin, NModal, NCard } from 'naive-ui'
+import { NDataTable, NButton, NTag, NDrawer, NDrawerContent, NSpin, NModal } from 'naive-ui'
 // @ts-ignore
 import * as AsciinemaPlayer from 'asciinema-player'
 import 'asciinema-player/dist/bundle/asciinema-player.css'
@@ -119,7 +113,7 @@ async function openReplay(row: any) {
   playerInstance = AsciinemaPlayer.create(
     sessionApi.getReplayUrl(row.id),
     playerContainer.value,
-    { cols: 160, rows: 40, fit: 'width', theme: 'monokai' }
+    { cols: 160, rows: 40, fit: 'width', theme: 'monokai', autoPlay: true }
   )
 }
 
@@ -179,5 +173,41 @@ onMounted(() => loadPage(1))
 .log-input .log-content { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
 .log-output .log-content { background: var(--bg-elevated); color: var(--text-primary); }
 .log-prefix { opacity: 0.6; }
-.player-wrap { height: min(65vh, 620px); }
+.replay-dialog {
+  width: min(90vw, 1000px);
+  background: #1a1a2e;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+.replay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #16213e;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.replay-title {
+  font-size: 13px;
+  color: rgba(255,255,255,0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 40px);
+}
+.replay-close {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: rgba(255,255,255,0.6);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.replay-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.player-wrap { height: min(65vh, 600px); }
 </style>

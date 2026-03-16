@@ -18,11 +18,12 @@
 
       <!-- 右侧：主题选择 -->
       <div class="tab-actions">
+        <span class="tab-label">主题</span>
         <n-select
           :value="termTheme.currentId"
           :options="themeOptions"
           size="small"
-          style="width:140px"
+          style="width:150px"
           @update:value="applyTerminalTheme"
         />
       </div>
@@ -64,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch, defineOptions } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
 defineOptions({ name: 'TerminalView' })
 import { NSelect, NModal, NSpin, NDropdown } from 'naive-ui'
 import { Terminal } from '@xterm/xterm'
@@ -262,7 +263,7 @@ onUnmounted(() => {
 
 <style scoped>
 .terminal-page { display: flex; flex-direction: column; height: 100%; background: var(--terminal-bg); }
-.tab-bar { display: flex; align-items: center; background: var(--bg-sidebar);
+.tab-bar { display: flex; align-items: center; background: color-mix(in srgb, var(--terminal-bg) 85%, #000);
   border-bottom: 1px solid color-mix(in srgb, var(--terminal-fg) 15%, transparent); height: 36px; padding: 0 8px; gap: 2px; overflow-x: auto; }
 .tab { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px 4px 0 0;
   cursor: pointer; font-size: 12px; color: color-mix(in srgb, var(--terminal-fg) 55%, transparent); white-space: nowrap;
@@ -282,7 +283,8 @@ onUnmounted(() => {
   flex-shrink: 0; transition: all 0.15s; }
 .new-tab-btn:hover { border-color: color-mix(in srgb, var(--terminal-fg) 50%, transparent);
   color: var(--terminal-fg); }
-.tab-actions { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+.tab-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.tab-label { font-size: 12px; color: color-mix(in srgb, var(--terminal-fg) 55%, transparent); white-space: nowrap; }
 .terminal-area { flex: 1; overflow: hidden; display: flex; gap: 2px; background: var(--border); }
 .terminal-pane { flex: 1; overflow: hidden; background: var(--terminal-bg); }
 .host-picker-list { display: flex; flex-direction: column; gap: 4px; max-height: 400px; overflow-y: auto; }
