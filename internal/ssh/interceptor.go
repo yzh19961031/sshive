@@ -23,6 +23,21 @@ type InterceptResult struct {
 	MatchedRule string
 }
 
+// processBackspaces 处理退格符（0x7f / 0x08），返回视觉上等价的字符串。
+func processBackspaces(s string) string {
+	out := make([]rune, 0, len(s))
+	for _, r := range s {
+		if r == '\x7f' || r == '\b' {
+			if len(out) > 0 {
+				out = out[:len(out)-1]
+			}
+		} else {
+			out = append(out, r)
+		}
+	}
+	return string(out)
+}
+
 // Feed 处理一段输入数据。
 // 若未触发回车，返回 nil 表示继续缓冲。
 // 调用方只在 result.Blocked==false 时才透传数据给 SSH 服务器。
@@ -31,7 +46,7 @@ func (ic *Interceptor) Feed(data string) *InterceptResult {
 	if !strings.ContainsAny(data, "\r\n") {
 		return nil
 	}
-	cmd := strings.TrimRight(ic.buf.String(), "\r\n")
+	cmd := processBackspaces(strings.TrimRight(ic.buf.String(), "\r\n"))
 	ic.buf.Reset()
 
 	if cmd == "" {

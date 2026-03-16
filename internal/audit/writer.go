@@ -18,6 +18,7 @@ const (
 type Event struct {
 	Type    EventType
 	Content string
+	Result  string // 仅 EventCommand 使用
 }
 
 // AsyncWriter 异步接收审计事件，不阻塞主 SSH 链路
@@ -71,6 +72,7 @@ func (w *AsyncWriter) run() {
 			if err := w.repo.WriteCommand(&model.SessionCommand{
 				SessionID: w.sessionID,
 				Command:   evt.Content,
+				Result:    evt.Result,
 			}); err != nil {
 				slog.Warn("audit write command failed", "err", err)
 			}
@@ -93,9 +95,9 @@ func (w *AsyncWriter) SendInput(data string) {
 	}
 }
 
-func (w *AsyncWriter) SendCommand(cmd string) {
+func (w *AsyncWriter) SendCommand(cmd, result string) {
 	select {
-	case w.ch <- Event{Type: EventCommand, Content: cmd}:
+	case w.ch <- Event{Type: EventCommand, Content: cmd, Result: result}:
 	default:
 	}
 }

@@ -109,6 +109,7 @@ func (s *Session) Run(initWidth, initHeight int) error {
 	}
 
 	interceptor := NewInterceptor(s.tenantID)
+	tracker := &CommandTracker{}
 
 	// 5. 输出 goroutine：SSH → 浏览器
 	outputDone := make(chan struct{})
@@ -124,6 +125,10 @@ func (s *Session) Run(initWidth, initHeight int) error {
 				}
 				if asyncW != nil {
 					asyncW.SendOutput(data)
+					// 尝试提取当前命令的完整输出结果
+					if cmd, result, ok := tracker.FeedOutput(data); ok {
+						asyncW.SendCommand(cmd, result)
+					}
 				}
 			}
 			if err != nil {
@@ -165,7 +170,7 @@ func (s *Session) Run(initWidth, initHeight int) error {
 		if result.Blocked {
 			_ = s.ws.WriteMessage(websocket.BinaryMessage, []byte(blockMsg))
 			if asyncW != nil {
-				asyncW.SendCommand("[BLOCKED] " + result.Command)
+				asyncW.SendCommand("[BLOCKED] "+result.Command, "")
 			}
 			if auditResult != nil {
 				go writeDangerEvent(auditResult.Session.ID, result.Command, result.MatchedRule)
@@ -179,8 +184,9 @@ func (s *Session) Run(initWidth, initHeight int) error {
 		}
 		if asyncW != nil {
 			asyncW.SendInput(data)
+			// 通知 tracker 开始收集该命令的输出
 			if result.Command != "" {
-				asyncW.SendCommand(result.Command)
+				tracker.SetCommand(result.Command)
 			}
 		}
 	}

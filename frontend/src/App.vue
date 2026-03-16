@@ -1,13 +1,15 @@
 <!-- frontend/src/App.vue -->
 <template>
   <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
-    <router-view />
+    <n-dialog-provider>
+      <router-view />
+    </n-dialog-provider>
   </n-config-provider>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { NConfigProvider, darkTheme } from 'naive-ui'
+import { NConfigProvider, NDialogProvider, darkTheme } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
 
 const theme = useThemeStore()

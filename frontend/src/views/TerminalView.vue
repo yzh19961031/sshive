@@ -75,11 +75,29 @@ import { useAuthStore } from '@/stores/auth'
 import { hostApi } from '@/api/host'
 import { useTerminalThemeStore } from '@/stores/terminalTheme'
 import { useTerminalStore, type TermTab } from '@/stores/terminal'
+import { useThemeStore } from '@/stores/theme'
 
 const auth = useAuthStore()
 const termTheme = useTerminalThemeStore()
 const store = useTerminalStore()
+const themeStore = useThemeStore()
 const themeOptions = termTheme.themes.map(t => ({ label: t.name, value: t.id }))
+
+// UI 浅色主题 → 自动切换终端为浅色主题
+const LIGHT_UI_THEMES = ['light-clean']
+const LIGHT_TERM_THEME = 'github-light'
+const DARK_TERM_THEME = 'default'
+const LIGHT_TERM_IDS = new Set(['github-light', 'papercolor-light', 'intellij-light'])
+
+watch(() => themeStore.current, (uiTheme) => {
+  const wantLight = LIGHT_UI_THEMES.includes(uiTheme)
+  const isLightTerm = LIGHT_TERM_IDS.has(termTheme.currentId)
+  if (wantLight && !isLightTerm) {
+    applyTerminalTheme(LIGHT_TERM_THEME)
+  } else if (!wantLight && isLightTerm) {
+    applyTerminalTheme(DARK_TERM_THEME)
+  }
+}, { immediate: true })
 
 // 组件本地：DOM 容器 map 和 xterm 实例 map
 const containers: Record<string, HTMLElement> = {}

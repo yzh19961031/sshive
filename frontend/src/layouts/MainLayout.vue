@@ -31,7 +31,7 @@
           <span class="nav-icon">🎨</span>
           <span v-if="!collapsed" class="nav-text">{{ currentThemeLabel }}</span>
         </div>
-        <div class="nav-item" :title="collapsed ? '退出登录' : undefined" @click="auth.logout()">
+        <div class="nav-item" :title="collapsed ? '退出登录' : undefined" @click="handleLogout">
           <span class="nav-icon">⏻</span>
           <span v-if="!collapsed" class="nav-text">退出登录</span>
         </div>
@@ -55,12 +55,24 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useDialog } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 
 const auth = useAuthStore()
 const themeStore = useThemeStore()
+const dialog = useDialog()
 themeStore.init()
+
+function handleLogout() {
+  dialog.warning({
+    title: '退出登录',
+    content: '确定要退出登录吗？',
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: () => auth.logout(),
+  })
+}
 
 // Sidebar collapse state
 const collapsed = ref(localStorage.getItem('sidebar-collapsed') === '1')
