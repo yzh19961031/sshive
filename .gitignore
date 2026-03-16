@@ -18,6 +18,8 @@ vendor/
 # Env
 .env
 .env.local
+config.yaml
+config.yml
 
 # Build output (frontend build goes to /web via vite.config outDir)
 # The /web directory is tracked for go:embed
