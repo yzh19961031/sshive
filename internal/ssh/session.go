@@ -175,7 +175,8 @@ func (s *Session) Run(initWidth, initHeight int) error {
 			if auditResult != nil {
 				go writeDangerEvent(auditResult.Session.ID, result.Command, result.MatchedRule)
 			}
-			_, _ = sshStdin.Write([]byte("\r"))
+			// \x15 = Ctrl+U 清空 PTY 行缓冲，\r 提交空行得到新提示符
+			_, _ = sshStdin.Write([]byte("\x15\r"))
 			continue
 		}
 
