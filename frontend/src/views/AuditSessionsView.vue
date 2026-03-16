@@ -6,7 +6,7 @@
     </div>
     <n-data-table :columns="columns" :data="sessions" :loading="loading"
       :pagination="pagination" remote @update:page="loadPage"
-      :scroll-x="760" />
+      :scroll-x="820" />
 
     <!-- 命令历史 Drawer -->
     <n-drawer v-model:show="drawerVisible" :width="420" placement="right">
@@ -31,11 +31,11 @@
     <n-modal v-model:show="replayVisible" :mask-closable="true">
       <n-card
         :title="replayTitle"
-        style="width:min(92vw,1200px);max-height:90vh;display:flex;flex-direction:column"
+        style="width:min(92vw,1100px)"
         :bordered="false"
         size="small"
         role="dialog"
-        content-style="flex:1;overflow:hidden;padding:12px"
+        content-style="padding:16px;overflow:visible"
       >
         <template #header-extra>
           <n-button quaternary circle size="small" @click="replayVisible = false">✕</n-button>
@@ -119,25 +119,25 @@ async function openReplay(row: any) {
   playerInstance = AsciinemaPlayer.create(
     sessionApi.getReplayUrl(row.id),
     playerContainer.value,
-    { cols: 220, rows: 50, fit: 'width', theme: 'monokai' }
+    { cols: 160, rows: 40, fit: 'width', theme: 'monokai' }
   )
 }
 
 const columns = [
-  { title: '主机', key: 'host_name', minWidth: 120, ellipsis: { tooltip: true },
+  { title: '主机', key: 'host_name', width: 160, ellipsis: { tooltip: true },
     render: (row: any) => row.host_name || String(row.host_id) },
   { title: '用户', key: 'username', width: 90, ellipsis: { tooltip: true },
     render: (row: any) => row.username || String(row.user_id) },
-  { title: '客户端 IP', key: 'client_ip', width: 120, ellipsis: true },
+  { title: '客户端 IP', key: 'client_ip', width: 110, ellipsis: true },
   {
     title: '状态', key: 'status', width: 80,
     render: (row: any) => h(NTag,
       { type: statusTag(row.status), size: 'small', round: true },
       { default: () => row.status })
   },
-  { title: '时长', key: 'duration', width: 80,
+  { title: '时长', key: 'duration', width: 75,
     render: (row: any) => formatDuration(row) },
-  { title: '开始时间', key: 'started_at', width: 150,
+  { title: '开始时间', key: 'started_at', width: 165,
     render: (row: any) => new Date(row.started_at).toLocaleString('zh-CN', { hour12: false }) },
   {
     title: '操作', key: 'actions', width: 120, fixed: 'right' as const,
@@ -179,5 +179,5 @@ onMounted(() => loadPage(1))
 .log-input .log-content { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
 .log-output .log-content { background: var(--bg-elevated); color: var(--text-primary); }
 .log-prefix { opacity: 0.6; }
-.player-wrap { height: min(70vh, 700px); }
+.player-wrap { height: min(65vh, 620px); }
 </style>

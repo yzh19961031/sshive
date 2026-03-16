@@ -3,9 +3,6 @@
   <div class="terminal-page">
     <!-- Tab bar -->
     <div class="tab-bar">
-      <!-- 新建终端按钮（左侧） -->
-      <button class="new-tab-btn" @click="showHostPicker = true" title="新开终端">＋</button>
-
       <!-- Tab 列表 -->
       <div v-for="tab in tabs" :key="tab.id"
         :class="['tab', tab.id === activeTab && 'active']"
@@ -15,6 +12,9 @@
         <span>{{ tab.name }}</span>
         <button class="tab-close" @click.stop="closeTab(tab.id)">×</button>
       </div>
+
+      <!-- 新建终端按钮（tabs 后面，Termius 风格） -->
+      <button class="new-tab-btn" @click="showHostPicker = true" title="新开终端">＋</button>
 
       <!-- 右侧：主题选择 -->
       <div class="tab-actions">
@@ -64,7 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch, defineOptions } from 'vue'
+defineOptions({ name: 'TerminalView' })
 import { NSelect, NModal, NSpin, NDropdown } from 'naive-ui'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -248,6 +249,11 @@ function closeTab(id: string) {
     if (last) activeTab.value = last.id
   }
 }
+
+// 切换回终端页时重新计算终端尺寸
+onActivated(() => {
+  nextTick(() => tabs.value.forEach(t => t.fit?.fit()))
+})
 
 onUnmounted(() => {
   tabs.value.forEach(t => { t.ws?.close(); t.term?.dispose() })
