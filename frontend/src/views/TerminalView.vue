@@ -23,16 +23,15 @@
       <!-- 分屏按钮 -->
       <div class="split-btns">
         <button :class="['split-btn', splitCount === 1 && 'active']"
-          @click="setSplitCount(1)"
-          title="单屏模式">▣</button>
+          @click="setSplitCount(1)" title="单屏">1</button>
         <button :class="['split-btn', splitCount === 2 && 'active']"
           :disabled="store.tabs.length < 2"
           @click="setSplitCount(2)"
-          :title="store.tabs.length < 2 ? '需先开启 2 个以上会话' : '左右分屏'">⬛⬛</button>
+          :title="store.tabs.length < 2 ? '需先开启 2 个以上会话' : '左右分屏'">2</button>
         <button :class="['split-btn', splitCount === 4 && 'active']"
           :disabled="store.tabs.length < 4"
           @click="setSplitCount(4)"
-          :title="store.tabs.length < 4 ? '需先开启 4 个以上会话' : '四宫格分屏（最多 4 屏）'">⊞</button>
+          :title="store.tabs.length < 4 ? '需先开启 4 个以上会话' : '四宫格分屏'">4</button>
       </div>
 
       <div class="tab-actions">
@@ -191,7 +190,7 @@ const ctxX = ref(0)
 const ctxY = ref(0)
 const ctxTabId = ref('')
 const ctxOptions = [
-  { label: '复制会话', key: 'duplicate' },
+  { label: '新建同主机连接', key: 'duplicate' },
   { label: '关闭会话', key: 'close' },
 ]
 function showContextMenu(e: MouseEvent, tabId: string) {
@@ -389,10 +388,20 @@ function disposeSplitXterm(idx: number) {
   }
 }
 
+// ── 重复主机自动加序号 ───────────────────────────────────
+function uniqueTabName(baseName: string): string {
+  const names = new Set(store.tabs.map(t => t.name))
+  if (!names.has(baseName)) return baseName
+  let i = 1
+  while (names.has(`${baseName} (${i})`)) i++
+  return `${baseName} (${i})`
+}
+
 // ── 打开 / 关闭 Tab ─────────────────────────────────────
 async function openTab(hostId: number, name: string) {
   const id = `tab-${Date.now()}-${hostId}`
-  const tab: TermTab = { id, name, hostId, connected: false, everConnected: false, outputBuf: [] }
+  const finalName = uniqueTabName(name)
+  const tab: TermTab = { id, name: finalName, hostId, connected: false, everConnected: false, outputBuf: [] }
   store.addTab(tab)
   await nextTick()
   await assignTabToActiveSplit(id)
@@ -493,23 +502,29 @@ onUnmounted(() => {
 }
 .new-tab-btn:hover { border-color: color-mix(in srgb, var(--terminal-fg) 50%, transparent); color: var(--terminal-fg); }
 
-/* ── 分屏按钮 ── */
-.split-btns { display: flex; gap: 2px; margin-left: 4px; flex-shrink: 0; }
+/* ── 分屏按钮（segmented control） ── */
+.split-btns {
+  display: flex; margin-left: 4px; flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--terminal-fg) 20%, transparent);
+  border-radius: 4px; overflow: hidden;
+}
 .split-btn {
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--terminal-fg) 15%, transparent);
-  color: color-mix(in srgb, var(--terminal-fg) 50%, transparent);
-  border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 11px;
-  line-height: 1.4; transition: all 0.15s;
+  border: none;
+  border-right: 1px solid color-mix(in srgb, var(--terminal-fg) 15%, transparent);
+  color: color-mix(in srgb, var(--terminal-fg) 45%, transparent);
+  padding: 0 10px; height: 22px; cursor: pointer;
+  font-size: 12px; font-weight: 600; line-height: 22px;
+  transition: all 0.15s; min-width: 28px;
 }
+.split-btn:last-child { border-right: none; }
 .split-btn:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--terminal-fg) 40%, transparent);
+  background: color-mix(in srgb, var(--terminal-fg) 10%, transparent);
   color: var(--terminal-fg);
 }
 .split-btn.active {
-  background: color-mix(in srgb, var(--terminal-fg) 15%, transparent);
+  background: color-mix(in srgb, var(--terminal-fg) 18%, transparent);
   color: var(--terminal-fg);
-  border-color: color-mix(in srgb, var(--terminal-fg) 30%, transparent);
 }
 .split-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
