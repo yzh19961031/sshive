@@ -64,9 +64,12 @@
   </div>
 </template>
 
+<script lang="ts">
+export default { name: 'TerminalView' }
+</script>
+
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
-defineOptions({ name: 'TerminalView' })
 import { NSelect, NModal, NSpin, NDropdown } from 'naive-ui'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -160,16 +163,18 @@ function pickHost(h: any) {
   openTab(h.id, h.name)
 }
 
-onMounted(async () => {
-  // Read pending connections from host list page
+// 处理从主机列表跳转过来的待连接主机
+async function processPendingSSH() {
   const pending: { hostId: number; hostName: string }[] =
     JSON.parse(sessionStorage.getItem('pendingSSH') ?? '[]')
+  if (pending.length === 0) return
   sessionStorage.removeItem('pendingSSH')
-
   for (const p of pending) {
     await openTab(p.hostId, p.hostName)
   }
-})
+}
+
+onMounted(processPendingSSH)
 
 async function openTab(hostId: number, name: string) {
   const id = `tab-${Date.now()}-${hostId}`
@@ -251,8 +256,9 @@ function closeTab(id: string) {
   }
 }
 
-// 切换回终端页时重新计算终端尺寸
-onActivated(() => {
+// keep-alive 激活时：处理新的待连接主机 + 重新适配终端尺寸
+onActivated(async () => {
+  await processPendingSSH()
   nextTick(() => tabs.value.forEach(t => t.fit?.fit()))
 })
 
