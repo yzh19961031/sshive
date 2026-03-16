@@ -3,20 +3,17 @@
   <div class="terminal-page">
     <!-- Tab bar -->
     <div class="tab-bar">
-      <!-- Tab 列表 -->
-      <div v-for="tab in tabs" :key="tab.id"
-        :class="['tab', tab.id === activeTab && 'active']"
-        @click="activeTab = tab.id"
+      <div v-for="tab in store.tabs" :key="tab.id"
+        :class="['tab', tab.id === store.activeId && 'active']"
+        @click="store.activeId = tab.id"
         @contextmenu.prevent="showContextMenu($event, tab.id)">
         <div :class="['tab-dot', tab.connected ? 'online' : 'offline']" />
         <span>{{ tab.name }}</span>
         <button class="tab-close" @click.stop="closeTab(tab.id)">×</button>
       </div>
 
-      <!-- 新建终端按钮（tabs 后面，Termius 风格） -->
       <button class="new-tab-btn" @click="showHostPicker = true" title="新开终端">＋</button>
 
-      <!-- 右侧：主题选择 -->
       <div class="tab-actions">
         <span class="tab-label">主题</span>
         <n-select
@@ -33,19 +30,19 @@
     <n-dropdown
       placement="bottom-start"
       trigger="manual"
-      :x="ctxX"
-      :y="ctxY"
+      :x="ctxX" :y="ctxY"
       :options="ctxOptions"
       :show="ctxVisible"
       :on-clickoutside="() => ctxVisible = false"
       @select="handleCtxSelect"
     />
 
-    <!-- Terminal area -->
+    <!-- Terminal area：v-show 保留所有 tab 的 DOM，切换只改可见性 -->
     <div class="terminal-area">
-      <div v-for="(tab, i) in displayTabs" :key="tab.id"
+      <div v-for="tab in store.tabs" :key="tab.id"
         class="terminal-pane"
-        :ref="el => setPaneRef(el as HTMLElement, i)">
+        v-show="tab.id === store.activeId"
+        :ref="el => { if (el) containers[tab.id] = el as HTMLElement }">
       </div>
     </div>
 
@@ -69,7 +66,7 @@ export default { name: 'TerminalView' }
 </script>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, onActivated, nextTick, watch } from 'vue'
 import { NSelect, NModal, NSpin, NDropdown } from 'naive-ui'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -77,32 +74,18 @@ import '@xterm/xterm/css/xterm.css'
 import { useAuthStore } from '@/stores/auth'
 import { hostApi } from '@/api/host'
 import { useTerminalThemeStore } from '@/stores/terminalTheme'
+import { useTerminalStore, type TermTab } from '@/stores/terminal'
 
 const auth = useAuthStore()
 const termTheme = useTerminalThemeStore()
+const store = useTerminalStore()
 const themeOptions = termTheme.themes.map(t => ({ label: t.name, value: t.id }))
 
-interface Tab {
-  id: string
-  name: string
-  hostId: number
-  connected: boolean
-  everConnected: boolean
-  term?: Terminal
-  fit?: FitAddon
-  ws?: WebSocket
-}
+// 组件本地：DOM 容器 map 和 xterm 实例 map
+const containers: Record<string, HTMLElement> = {}
+const xtermMap: Record<string, { term: Terminal; fit: FitAddon }> = {}
 
-const tabs = ref<Tab[]>([])
-const activeTab = ref('')
-const paneRefs: HTMLElement[] = []
-
-// Only show the active tab
-const displayTabs = computed(() =>
-  tabs.value.filter(t => t.id === activeTab.value)
-)
-
-// Right-click context menu
+// ── 右键菜单 ────────────────────────────────────────────────
 const ctxVisible = ref(false)
 const ctxX = ref(0)
 const ctxY = ref(0)
@@ -111,42 +94,28 @@ const ctxOptions = [
   { label: '复制会话', key: 'duplicate' },
   { label: '关闭会话', key: 'close' },
 ]
-
 function showContextMenu(e: MouseEvent, tabId: string) {
-  ctxTabId.value = tabId
-  ctxX.value = e.clientX
-  ctxY.value = e.clientY
-  ctxVisible.value = true
+  ctxTabId.value = tabId; ctxX.value = e.clientX; ctxY.value = e.clientY; ctxVisible.value = true
 }
-
 function handleCtxSelect(key: string) {
   ctxVisible.value = false
-  const tab = tabs.value.find(t => t.id === ctxTabId.value)
+  const tab = store.getTab(ctxTabId.value)
   if (!tab) return
-  if (key === 'close') {
-    closeTab(tab.id)
-  } else if (key === 'duplicate') {
-    openTab(tab.hostId, tab.name)
-  }
+  if (key === 'close') closeTab(tab.id)
+  else if (key === 'duplicate') openTab(tab.hostId, tab.name)
 }
 
-function setPaneRef(el: HTMLElement | null, i: number) {
-  if (el) paneRefs[i] = el
-}
-
+// ── 主题 ─────────────────────────────────────────────────────
 function applyTerminalTheme(id: string) {
   termTheme.apply(id)
   const newTheme = termTheme.current().theme
-  tabs.value.forEach(tab => {
-    if (tab.term) tab.term.options.theme = newTheme
-  })
+  Object.values(xtermMap).forEach(({ term }) => { term.options.theme = newTheme })
 }
 
-// 主机选择器
+// ── 主机选择器 ───────────────────────────────────────────────
 const showHostPicker = ref(false)
 const hostPickerLoading = ref(false)
 const pickerHosts = ref<any[]>([])
-
 watch(showHostPicker, async (v) => {
   if (!v) return
   hostPickerLoading.value = true
@@ -157,39 +126,35 @@ watch(showHostPicker, async (v) => {
     hostPickerLoading.value = false
   }
 })
+function pickHost(h: any) { showHostPicker.value = false; openTab(h.id, h.name) }
 
-function pickHost(h: any) {
-  showHostPicker.value = false
-  openTab(h.id, h.name)
-}
-
-// 处理从主机列表跳转过来的待连接主机
-async function processPendingSSH() {
-  const pending: { hostId: number; hostName: string }[] =
-    JSON.parse(sessionStorage.getItem('pendingSSH') ?? '[]')
-  if (pending.length === 0) return
-  sessionStorage.removeItem('pendingSSH')
-  for (const p of pending) {
-    await openTab(p.hostId, p.hostName)
-  }
-}
-
-onMounted(processPendingSSH)
-
+// ── 打开 / 关闭 Tab ──────────────────────────────────────────
 async function openTab(hostId: number, name: string) {
   const id = `tab-${Date.now()}-${hostId}`
-  const tab: Tab = { id, name, hostId, connected: false, everConnected: false }
-  tabs.value.push(tab)
-  activeTab.value = id
-
-  await nextTick()
-  await initTerminal(tab)
+  const tab: TermTab = { id, name, hostId, connected: false, everConnected: false, outputBuf: [] }
+  store.addTab(tab)
+  await nextTick()          // 等 v-show DOM 渲染
+  await attachXterm(tab)   // 创建 xterm + 连接 WS
 }
 
-async function initTerminal(tab: Tab) {
-  const idx = displayTabs.value.findIndex(t => t.id === tab.id)
-  const container = paneRefs[idx]
+function closeTab(id: string) {
+  const x = xtermMap[id]
+  if (x) { x.term.dispose(); delete xtermMap[id] }
+  delete containers[id]
+  store.removeTab(id)
+}
+
+// ── 初始化 / 重连 xterm ──────────────────────────────────────
+async function attachXterm(tab: TermTab) {
+  await nextTick()
+  const container = containers[tab.id]
   if (!container) return
+
+  // 如果已有 xterm（keep-alive 路径），直接 fit 就好
+  if (xtermMap[tab.id]) {
+    xtermMap[tab.id]!.fit.fit()
+    return
+  }
 
   const term = new Terminal({
     theme: termTheme.current().theme,
@@ -201,11 +166,27 @@ async function initTerminal(tab: Tab) {
   const fit = new FitAddon()
   term.loadAddon(fit)
   term.open(container)
-  fit.fit()
-  tab.term = term
-  tab.fit = fit
 
-  // Connect WebSocket
+  // 重放历史输出（组件重建时恢复内容）
+  for (const chunk of tab.outputBuf) {
+    term.write(chunk instanceof Uint8Array ? chunk : new TextEncoder().encode(chunk as string))
+  }
+  fit.fit()
+  xtermMap[tab.id] = { term, fit }
+
+  // ── WebSocket ─────────────────────────────────────────────
+  // 如果已有活跃 WS（全局 store 中），重新绑定 onmessage 即可
+  if (tab.ws && tab.ws.readyState === WebSocket.OPEN) {
+    bindWsToTerm(tab, term)
+    term.onData(data => { if (tab.ws!.readyState === WebSocket.OPEN) tab.ws!.send(data) })
+    term.onResize(({ cols, rows }) => {
+      if (tab.ws!.readyState === WebSocket.OPEN)
+        tab.ws!.send(JSON.stringify({ type: 'resize', width: cols, height: rows }))
+    })
+    return
+  }
+
+  // 否则新建 WS
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
   const ws = new WebSocket(`${proto}//${location.host}/api/ws/ssh/${tab.hostId}?token=${auth.token}`)
   ws.binaryType = 'arraybuffer'
@@ -213,64 +194,75 @@ async function initTerminal(tab: Tab) {
 
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: 'init', width: term.cols, height: term.rows }))
-    tab.connected = true
-    tab.everConnected = true
+    tab.connected = true; tab.everConnected = true
   }
-  ws.onmessage = (e) => {
-    const data = e.data instanceof ArrayBuffer
-      ? new Uint8Array(e.data)
-      : e.data
-    term.write(data)
-  }
+  bindWsToTerm(tab, term)
   ws.onclose = (e) => {
     tab.connected = false
-    if (tab.everConnected) {
-      term.write('\r\n\x1b[33m[连接已断开]\x1b[0m\r\n')
-    } else {
+    if (tab.everConnected) term.write('\r\n\x1b[33m[连接已断开]\x1b[0m\r\n')
+    else {
       const reason = e.code === 4001 ? '认证失败' : e.code === 4003 ? '无权限' : `错误码 ${e.code}`
       term.write(`\r\n\x1b[31m[连接失败: ${reason}]\x1b[0m\r\n`)
     }
   }
 
-  term.onData(data => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(data)
-  })
+  term.onData(data => { if (ws.readyState === WebSocket.OPEN) ws.send(data) })
   term.onResize(({ cols, rows }) => {
     if (ws.readyState === WebSocket.OPEN)
       ws.send(JSON.stringify({ type: 'resize', width: cols, height: rows }))
   })
 
-  // Watch container resize
-  const ro = new ResizeObserver(() => fit.fit())
+  const ro = new ResizeObserver(() => xtermMap[tab.id]?.fit.fit())
   ro.observe(container)
 }
 
-function closeTab(id: string) {
-  const tab = tabs.value.find(t => t.id === id)
-  if (tab?.ws) tab.ws.close()
-  if (tab?.term) tab.term.dispose()
-  tabs.value = tabs.value.filter(t => t.id !== id)
-  if (activeTab.value === id && tabs.value.length) {
-    const last = tabs.value[tabs.value.length - 1]
-    if (last) activeTab.value = last.id
+function bindWsToTerm(tab: TermTab, term: Terminal) {
+  tab.ws!.onmessage = (e) => {
+    const data = e.data instanceof ArrayBuffer ? new Uint8Array(e.data) : e.data
+    term.write(data)
+    store.appendOutput(tab.id, data)
   }
 }
 
-// keep-alive 激活时：处理新的待连接主机 + 重新适配终端尺寸
-onActivated(async () => {
+// ── pendingSSH（来自主机列表快捷连接）───────────────────────
+async function processPendingSSH() {
+  const pending: { hostId: number; hostName: string }[] =
+    JSON.parse(sessionStorage.getItem('pendingSSH') ?? '[]')
+  if (!pending.length) return
+  sessionStorage.removeItem('pendingSSH')
+  for (const p of pending) await openTab(p.hostId, p.hostName)
+}
+
+// ── 组件重建时恢复已有 tabs（store 中有数据但 xterm 未初始化）─
+async function restoreExistingTabs() {
+  await nextTick()
+  for (const tab of store.tabs) {
+    await attachXterm(tab)
+  }
+}
+
+onMounted(async () => {
+  await restoreExistingTabs()
   await processPendingSSH()
-  nextTick(() => tabs.value.forEach(t => t.fit?.fit()))
 })
 
+onActivated(async () => {
+  await restoreExistingTabs()
+  await processPendingSSH()
+  nextTick(() => Object.values(xtermMap).forEach(({ fit }) => fit.fit()))
+})
+
+// 组件销毁只清理 xterm DOM，WS 留在 store 里
 onUnmounted(() => {
-  tabs.value.forEach(t => { t.ws?.close(); t.term?.dispose() })
+  Object.values(xtermMap).forEach(({ term }) => term.dispose())
+  Object.keys(xtermMap).forEach(k => delete xtermMap[k])
 })
 </script>
 
 <style scoped>
 .terminal-page { display: flex; flex-direction: column; height: 100%; background: var(--terminal-bg); }
 .tab-bar { display: flex; align-items: center; background: color-mix(in srgb, var(--terminal-bg) 85%, #000);
-  border-bottom: 1px solid color-mix(in srgb, var(--terminal-fg) 15%, transparent); height: 36px; padding: 0 8px; gap: 2px; overflow-x: auto; }
+  border-bottom: 1px solid color-mix(in srgb, var(--terminal-fg) 15%, transparent); height: 36px; padding: 0 8px; gap: 2px; overflow-x: auto; flex-shrink: 0; }
 .tab { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px 4px 0 0;
   cursor: pointer; font-size: 12px; color: color-mix(in srgb, var(--terminal-fg) 55%, transparent); white-space: nowrap;
   border: 1px solid transparent; border-bottom: none; transition: all 0.15s; }
@@ -287,12 +279,11 @@ onUnmounted(() => {
   color: color-mix(in srgb, var(--terminal-fg) 70%, transparent);
   border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 16px; line-height: 1;
   flex-shrink: 0; transition: all 0.15s; }
-.new-tab-btn:hover { border-color: color-mix(in srgb, var(--terminal-fg) 50%, transparent);
-  color: var(--terminal-fg); }
+.new-tab-btn:hover { border-color: color-mix(in srgb, var(--terminal-fg) 50%, transparent); color: var(--terminal-fg); }
 .tab-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 .tab-label { font-size: 12px; color: color-mix(in srgb, var(--terminal-fg) 55%, transparent); white-space: nowrap; }
-.terminal-area { flex: 1; overflow: hidden; display: flex; gap: 2px; background: var(--border); }
-.terminal-pane { flex: 1; overflow: hidden; background: var(--terminal-bg); }
+.terminal-area { flex: 1; overflow: hidden; display: flex; background: var(--terminal-bg); }
+.terminal-pane { flex: 1; overflow: hidden; }
 .host-picker-list { display: flex; flex-direction: column; gap: 4px; max-height: 400px; overflow-y: auto; }
 .picker-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 6px;
   cursor: pointer; transition: background 0.15s; }
