@@ -12,6 +12,7 @@ const routes: RouteRecordRaw[] = [
       { path: '', redirect: '/dashboard' },
       { path: 'dashboard', component: () => import('@/views/DashboardView.vue') },
       { path: 'hosts', component: () => import('@/views/HostListView.vue') },
+      { path: 'host-groups', component: () => import('@/views/HostGroupsView.vue') },
       { path: 'terminal', component: () => import('@/views/TerminalView.vue') },
       { path: 'sftp/:hostId', component: () => import('@/views/SftpView.vue') },
       { path: 'audit/sessions', component: () => import('@/views/AuditSessionsView.vue') },

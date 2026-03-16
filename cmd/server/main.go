@@ -17,6 +17,7 @@ import (
 	"github.com/sshive/sshive/internal/dangerrule"
 	"github.com/sshive/sshive/internal/db"
 	"github.com/sshive/sshive/internal/host"
+	"github.com/sshive/sshive/internal/hostgroup"
 	sftpmodule "github.com/sshive/sshive/internal/sftp"
 	sshmodule "github.com/sshive/sshive/internal/ssh"
 	"github.com/sshive/sshive/internal/stats"
@@ -85,6 +86,13 @@ func main() {
 	credH := credential.NewHandler()
 	authed.GET("/credentials", auth.RequirePermission("host:manage"), credH.List)
 	authed.POST("/credentials", auth.RequirePermission("host:manage"), credH.Create)
+
+	// 主机分组管理
+	groupH := hostgroup.NewHandler()
+	authed.GET("/host-groups", auth.RequirePermission("host:manage"), groupH.List)
+	authed.POST("/host-groups", auth.RequirePermission("host:manage"), groupH.Create)
+	authed.PUT("/host-groups/:id", auth.RequirePermission("host:manage"), groupH.Update)
+	authed.DELETE("/host-groups/:id", auth.RequirePermission("host:manage"), groupH.Delete)
 
 	// 主机管理
 	hostH := host.NewHandler()

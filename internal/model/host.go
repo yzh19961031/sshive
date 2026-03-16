@@ -42,5 +42,6 @@ type Host struct {
 	CredentialID int64     `gorm:"not null" json:"credential_id"`
 	Status       int8      `gorm:"default:1;not null" json:"status"`
 	Tags         Tags      `gorm:"type:json" json:"tags"`
+	GroupID      *int64    `gorm:"index" json:"group_id"`
 	CreatedAt    time.Time `json:"created_at"`
 }

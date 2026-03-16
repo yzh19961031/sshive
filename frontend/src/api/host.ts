@@ -10,6 +10,7 @@ export interface Host {
   credential_id: number
   status: number
   tags: string[]
+  group_id: number | null
   created_at: string
 }
 

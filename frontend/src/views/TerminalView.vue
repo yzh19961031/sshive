@@ -3,13 +3,20 @@
   <div class="terminal-page">
     <!-- Tab bar -->
     <div class="tab-bar">
+      <!-- 新建终端按钮（左侧） -->
+      <button class="new-tab-btn" @click="showHostPicker = true" title="新开终端">＋</button>
+
+      <!-- Tab 列表 -->
       <div v-for="tab in tabs" :key="tab.id"
         :class="['tab', tab.id === activeTab && 'active']"
-        @click="activeTab = tab.id">
+        @click="activeTab = tab.id"
+        @contextmenu.prevent="showContextMenu($event, tab.id)">
         <div :class="['tab-dot', tab.connected ? 'online' : 'offline']" />
         <span>{{ tab.name }}</span>
         <button class="tab-close" @click.stop="closeTab(tab.id)">×</button>
       </div>
+
+      <!-- 右侧：主题选择 -->
       <div class="tab-actions">
         <n-select
           :value="termTheme.currentId"
@@ -18,14 +25,23 @@
           style="width:140px"
           @update:value="applyTerminalTheme"
         />
-        <button class="split-btn" @click="copySelection" title="复制选中内容">⎘</button>
-        <button class="split-btn" @click="showHostPicker = true" title="新开终端">＋</button>
-        <button class="split-btn" :class="{ active: splitMode }" @click="toggleSplit" title="分屏">⊞</button>
       </div>
     </div>
 
+    <!-- 右键菜单 -->
+    <n-dropdown
+      placement="bottom-start"
+      trigger="manual"
+      :x="ctxX"
+      :y="ctxY"
+      :options="ctxOptions"
+      :show="ctxVisible"
+      :on-clickoutside="() => ctxVisible = false"
+      @select="handleCtxSelect"
+    />
+
     <!-- Terminal area -->
-    <div :class="['terminal-area', splitMode && 'split']">
+    <div class="terminal-area">
       <div v-for="(tab, i) in displayTabs" :key="tab.id"
         class="terminal-pane"
         :ref="el => setPaneRef(el as HTMLElement, i)">
@@ -49,7 +65,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { NSelect, NModal, NSpin } from 'naive-ui'
+import { NSelect, NModal, NSpin, NDropdown } from 'naive-ui'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -66,6 +82,7 @@ interface Tab {
   name: string
   hostId: number
   connected: boolean
+  everConnected: boolean
   term?: Terminal
   fit?: FitAddon
   ws?: WebSocket
@@ -73,13 +90,40 @@ interface Tab {
 
 const tabs = ref<Tab[]>([])
 const activeTab = ref('')
-const splitMode = ref(false)
 const paneRefs: HTMLElement[] = []
 
-// In split mode show up to 4 tabs, otherwise only the active tab
+// Only show the active tab
 const displayTabs = computed(() =>
-  splitMode.value ? tabs.value.slice(0, 4) : tabs.value.filter(t => t.id === activeTab.value)
+  tabs.value.filter(t => t.id === activeTab.value)
 )
+
+// Right-click context menu
+const ctxVisible = ref(false)
+const ctxX = ref(0)
+const ctxY = ref(0)
+const ctxTabId = ref('')
+const ctxOptions = [
+  { label: '复制会话', key: 'duplicate' },
+  { label: '关闭会话', key: 'close' },
+]
+
+function showContextMenu(e: MouseEvent, tabId: string) {
+  ctxTabId.value = tabId
+  ctxX.value = e.clientX
+  ctxY.value = e.clientY
+  ctxVisible.value = true
+}
+
+function handleCtxSelect(key: string) {
+  ctxVisible.value = false
+  const tab = tabs.value.find(t => t.id === ctxTabId.value)
+  if (!tab) return
+  if (key === 'close') {
+    closeTab(tab.id)
+  } else if (key === 'duplicate') {
+    openTab(tab.hostId, tab.name)
+  }
+}
 
 function setPaneRef(el: HTMLElement | null, i: number) {
   if (el) paneRefs[i] = el
@@ -91,14 +135,6 @@ function applyTerminalTheme(id: string) {
   tabs.value.forEach(tab => {
     if (tab.term) tab.term.options.theme = newTheme
   })
-}
-
-// 复制选中文本
-function copySelection() {
-  const activeT = tabs.value.find(t => t.id === activeTab.value)
-  if (!activeT?.term) return
-  const sel = activeT.term.getSelection()
-  if (sel) navigator.clipboard.writeText(sel)
 }
 
 // 主机选择器
@@ -135,7 +171,7 @@ onMounted(async () => {
 
 async function openTab(hostId: number, name: string) {
   const id = `tab-${Date.now()}-${hostId}`
-  const tab: Tab = { id, name, hostId, connected: false }
+  const tab: Tab = { id, name, hostId, connected: false, everConnected: false }
   tabs.value.push(tab)
   activeTab.value = id
 
@@ -171,6 +207,7 @@ async function initTerminal(tab: Tab) {
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: 'init', width: term.cols, height: term.rows }))
     tab.connected = true
+    tab.everConnected = true
   }
   ws.onmessage = (e) => {
     const data = e.data instanceof ArrayBuffer
@@ -178,9 +215,14 @@ async function initTerminal(tab: Tab) {
       : e.data
     term.write(data)
   }
-  ws.onclose = () => {
+  ws.onclose = (e) => {
     tab.connected = false
-    term.write('\r\n\x1b[31m[连接已断开]\x1b[0m\r\n')
+    if (tab.everConnected) {
+      term.write('\r\n\x1b[33m[连接已断开]\x1b[0m\r\n')
+    } else {
+      const reason = e.code === 4001 ? '认证失败' : e.code === 4003 ? '无权限' : `错误码 ${e.code}`
+      term.write(`\r\n\x1b[31m[连接失败: ${reason}]\x1b[0m\r\n`)
+    }
   }
 
   term.onData(data => {
@@ -207,11 +249,6 @@ function closeTab(id: string) {
   }
 }
 
-function toggleSplit() {
-  splitMode.value = !splitMode.value
-  nextTick(() => tabs.value.forEach(t => t.fit?.fit()))
-}
-
 onUnmounted(() => {
   tabs.value.forEach(t => { t.ws?.close(); t.term?.dispose() })
 })
@@ -220,22 +257,26 @@ onUnmounted(() => {
 <style scoped>
 .terminal-page { display: flex; flex-direction: column; height: 100%; background: var(--terminal-bg); }
 .tab-bar { display: flex; align-items: center; background: var(--bg-sidebar);
-  border-bottom: 1px solid var(--border); height: 36px; padding: 0 8px; gap: 2px; overflow-x: auto; }
+  border-bottom: 1px solid color-mix(in srgb, var(--terminal-fg) 15%, transparent); height: 36px; padding: 0 8px; gap: 2px; overflow-x: auto; }
 .tab { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 4px 4px 0 0;
-  cursor: pointer; font-size: 12px; color: var(--text-secondary); white-space: nowrap;
+  cursor: pointer; font-size: 12px; color: color-mix(in srgb, var(--terminal-fg) 55%, transparent); white-space: nowrap;
   border: 1px solid transparent; border-bottom: none; transition: all 0.15s; }
-.tab.active { background: var(--terminal-bg); color: var(--text-primary);
-  border-color: var(--border); }
+.tab:hover { color: color-mix(in srgb, var(--terminal-fg) 80%, transparent); }
+.tab.active { background: var(--terminal-bg); color: var(--terminal-fg);
+  border-color: color-mix(in srgb, var(--terminal-fg) 20%, transparent); }
 .tab-dot { width: 6px; height: 6px; border-radius: 50%; }
 .tab-dot.online { background: var(--success); }
 .tab-dot.offline { background: var(--text-muted); }
 .tab-close { background: none; border: none; color: inherit; cursor: pointer;
   padding: 0 2px; opacity: 0.5; font-size: 14px; line-height: 1; }
 .tab-close:hover { opacity: 1; color: var(--danger); }
+.new-tab-btn { background: transparent; border: 1px solid color-mix(in srgb, var(--terminal-fg) 20%, transparent);
+  color: color-mix(in srgb, var(--terminal-fg) 70%, transparent);
+  border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 16px; line-height: 1;
+  flex-shrink: 0; transition: all 0.15s; }
+.new-tab-btn:hover { border-color: color-mix(in srgb, var(--terminal-fg) 50%, transparent);
+  color: var(--terminal-fg); }
 .tab-actions { margin-left: auto; display: flex; gap: 4px; align-items: center; }
-.split-btn { background: transparent; border: 1px solid var(--border); color: var(--text-secondary);
-  border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 13px; }
-.split-btn.active { border-color: var(--accent); color: var(--accent); }
 .terminal-area { flex: 1; overflow: hidden; display: flex; gap: 2px; background: var(--border); }
 .terminal-pane { flex: 1; overflow: hidden; background: var(--terminal-bg); }
 .host-picker-list { display: flex; flex-direction: column; gap: 4px; max-height: 400px; overflow-y: auto; }

@@ -5,7 +5,8 @@
       <h2 class="page-title">审计日志</h2>
     </div>
     <n-data-table :columns="columns" :data="sessions" :loading="loading"
-      :pagination="pagination" remote @update:page="loadPage" />
+      :pagination="pagination" remote @update:page="loadPage"
+      :scroll-x="760" />
 
     <!-- 命令历史 Drawer -->
     <n-drawer v-model:show="drawerVisible" :width="420" placement="right">
@@ -27,17 +28,28 @@
     </n-drawer>
 
     <!-- 回放 Modal -->
-    <n-modal v-model:show="replayVisible" :mask-closable="true"
-      style="width:90vw;height:85vh" preset="card" :title="replayTitle">
-      <div v-if="!replayReady" class="empty-tip">录像暂不可用</div>
-      <div v-else ref="playerContainer" class="player-wrap" />
+    <n-modal v-model:show="replayVisible" :mask-closable="true">
+      <n-card
+        :title="replayTitle"
+        style="width:min(92vw,1200px);max-height:90vh;display:flex;flex-direction:column"
+        :bordered="false"
+        size="small"
+        role="dialog"
+        content-style="flex:1;overflow:hidden;padding:12px"
+      >
+        <template #header-extra>
+          <n-button quaternary circle size="small" @click="replayVisible = false">✕</n-button>
+        </template>
+        <div v-if="!replayReady" class="empty-tip">录像暂不可用</div>
+        <div v-else ref="playerContainer" class="player-wrap" />
+      </n-card>
     </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, h, onMounted, nextTick } from 'vue'
-import { NDataTable, NButton, NTag, NDrawer, NDrawerContent, NSpin, NModal } from 'naive-ui'
+import { NDataTable, NButton, NTag, NDrawer, NDrawerContent, NSpin, NModal, NCard } from 'naive-ui'
 // @ts-ignore
 import * as AsciinemaPlayer from 'asciinema-player'
 import 'asciinema-player/dist/bundle/asciinema-player.css'
@@ -112,23 +124,23 @@ async function openReplay(row: any) {
 }
 
 const columns = [
-  { title: '主机', key: 'host_name', ellipsis: { tooltip: true },
+  { title: '主机', key: 'host_name', minWidth: 120, ellipsis: { tooltip: true },
     render: (row: any) => row.host_name || String(row.host_id) },
-  { title: '用户', key: 'username', width: 100,
+  { title: '用户', key: 'username', width: 90, ellipsis: { tooltip: true },
     render: (row: any) => row.username || String(row.user_id) },
-  { title: '客户端 IP', key: 'client_ip', width: 130 },
+  { title: '客户端 IP', key: 'client_ip', width: 120, ellipsis: true },
   {
-    title: '状态', key: 'status', width: 90,
+    title: '状态', key: 'status', width: 80,
     render: (row: any) => h(NTag,
       { type: statusTag(row.status), size: 'small', round: true },
       { default: () => row.status })
   },
-  { title: '时长', key: 'duration', width: 90,
+  { title: '时长', key: 'duration', width: 80,
     render: (row: any) => formatDuration(row) },
-  { title: '开始时间', key: 'started_at', width: 160,
+  { title: '开始时间', key: 'started_at', width: 150,
     render: (row: any) => new Date(row.started_at).toLocaleString('zh-CN', { hour12: false }) },
   {
-    title: '操作', key: 'actions', width: 110,
+    title: '操作', key: 'actions', width: 120, fixed: 'right' as const,
     render: (row: any) => h('div', { style: 'display:flex;gap:4px' }, [
       h(NButton, { size: 'tiny', quaternary: true, onClick: () => openCommands(row) },
         { default: () => '📋 日志' }),
@@ -167,5 +179,5 @@ onMounted(() => loadPage(1))
 .log-input .log-content { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
 .log-output .log-content { background: var(--bg-elevated); color: var(--text-primary); }
 .log-prefix { opacity: 0.6; }
-.player-wrap { height: calc(85vh - 80px); }
+.player-wrap { height: min(70vh, 700px); }
 </style>

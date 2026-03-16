@@ -81,7 +81,8 @@ const navGroups = [
     label: '运维',
     items: [
       { path: '/dashboard', icon: '📊', label: '仪表盘' },
-      { path: '/hosts',     icon: '⬡',  label: '主机列表' },
+      { path: '/hosts',       icon: '⬡',  label: '主机列表' },
+      { path: '/host-groups', icon: '◫',  label: '主机分组' },
       { path: '/terminal',  icon: '⌨',  label: 'Terminal' },
     ],
   },
@@ -202,7 +203,7 @@ const navGroups = [
   background: var(--accent);
   border-radius: 2px;
 }
-.nav-icon { font-size: 15px; flex-shrink: 0; }
+.nav-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; display: inline-block; }
 .nav-text { font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
 
 /* Bottom section */

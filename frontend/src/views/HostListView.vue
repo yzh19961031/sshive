@@ -128,6 +128,14 @@
           </div>
         </n-form-item>
 
+        <n-form-item label="分组" path="group_id">
+          <n-select
+            v-model:value="addForm.group_id"
+            :options="groupOptions"
+            placeholder="选择分组（可选）"
+            clearable
+          />
+        </n-form-item>
         <n-form-item label="标签" path="tags">
           <n-dynamic-tags v-model:value="addForm.tags" />
         </n-form-item>
@@ -152,9 +160,11 @@ import {
 } from 'naive-ui'
 import { hostApi, type Host } from '@/api/host'
 import { credentialApi, type Credential } from '@/api/credential'
+import { hostGroupApi, type HostGroup } from '@/api/hostgroup'
 
 const router = useRouter()
 const hosts = ref<Host[]>([])
+const groups = ref<HostGroup[]>([])
 const search = ref('')
 const viewMode = ref<'card' | 'list'>('card')
 const showAddModal = ref(false)
@@ -213,6 +223,10 @@ async function createCredential() {
 
 // ── Host form ─────────────────────────────────────────────
 const addFormRef = ref()
+const groupOptions = computed(() =>
+  groups.value.map(g => ({ label: g.name, value: g.id }))
+)
+
 const addForm = reactive({
   name: '',
   ip: '',
@@ -220,6 +234,7 @@ const addForm = reactive({
   auth_type: 'password' as 'password' | 'key',
   credential_id: null as number | null,
   tags: [] as string[],
+  group_id: null as number | null,
 })
 const saving = ref(false)
 const hostError = ref('')
@@ -245,6 +260,11 @@ async function loadHosts() {
   hosts.value = res.data.data?.list ?? []
 }
 
+async function loadGroups() {
+  const res = await hostGroupApi.list()
+  groups.value = res.data.data ?? []
+}
+
 async function loadCredentials() {
   loadingCredentials.value = true
   try {
@@ -258,6 +278,7 @@ async function loadCredentials() {
 onMounted(() => {
   loadHosts()
   loadCredentials()
+  loadGroups()
 })
 
 function openAddModal() {
@@ -267,6 +288,7 @@ function openAddModal() {
   addForm.auth_type = 'password'
   addForm.credential_id = null
   addForm.tags = []
+  addForm.group_id = null
   hostError.value = ''
   showNewCred.value = false
   newCred.name = ''
@@ -296,6 +318,7 @@ async function submitAddHost() {
       credential_id: addForm.credential_id,
       status: 1,
       tags: addForm.tags,
+      group_id: addForm.group_id,
     })
     showAddModal.value = false
     await loadHosts()
@@ -327,8 +350,9 @@ const filteredHosts = computed(() =>
 
 const groupedHosts = computed(() => {
   const map = new Map<string, Host[]>()
+  const groupMap = new Map<number, string>(groups.value.map(g => [g.id, g.name]))
   for (const h of filteredHosts.value) {
-    const label = h.tags?.[0] ?? '未分组'
+    const label = h.group_id ? (groupMap.get(h.group_id) ?? '未分组') : '未分组'
     if (!map.has(label)) map.set(label, [])
     map.get(label)!.push(h)
   }

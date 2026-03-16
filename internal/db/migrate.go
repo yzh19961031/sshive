@@ -13,6 +13,7 @@ func Migrate() error {
 		&model.Permission{},
 		&model.RolePermission{},
 		// Plan 2 new models
+		&model.HostGroup{},
 		&model.Host{},
 		&model.Credential{},
 		&model.DangerRule{},
