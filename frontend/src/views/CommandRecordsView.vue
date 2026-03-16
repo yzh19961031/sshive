@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { ref, h, onMounted } from 'vue'
-import { NDataTable, NTag, NButton, NModal, NEllipsis } from 'naive-ui'
+import { NDataTable, NTag, NModal } from 'naive-ui'
 import { sessionApi, type CommandItem } from '@/api/session'
 
 const records = ref<CommandItem[]>([])
