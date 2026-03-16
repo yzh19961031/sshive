@@ -3,29 +3,36 @@
   <div class="terminal-page">
     <!-- Tab bar -->
     <div class="tab-bar">
+      <!-- 当前 active 分屏提示 -->
+      <span v-if="splitCount > 1" class="split-hint">
+        分屏 {{ activeSplitIdx + 1 }} ↓
+      </span>
+
       <div v-for="tab in store.tabs" :key="tab.id"
-        :class="['tab',
-          isTabInSplit(tab.id) && 'visible',
-          tab.id === activeSplitTabId && 'active']"
+        :class="['tab', tab.id === activeSplitTabId && 'active', isTabInSplit(tab.id) && 'in-split']"
+        :title="splitCount > 1 ? `点击：将此会话放入分屏 ${activeSplitIdx + 1}` : tab.name"
         @click="assignTabToActiveSplit(tab.id)"
         @contextmenu.prevent="showContextMenu($event, tab.id)">
         <div :class="['tab-dot', tab.connected ? 'online' : 'offline']" />
         <span>{{ tab.name }}</span>
-        <button class="tab-close" @click.stop="closeTab(tab.id)">×</button>
+        <button class="tab-close" @click.stop="closeTab(tab.id)" title="关闭会话">×</button>
       </div>
 
-      <button class="new-tab-btn" @click="showHostPicker = true" title="新开终端">＋</button>
+      <button class="new-tab-btn" @click="showHostPicker = true" title="新建终端会话">＋</button>
 
       <!-- 分屏按钮 -->
       <div class="split-btns">
         <button :class="['split-btn', splitCount === 1 && 'active']"
-          @click="setSplitCount(1)" title="单屏">▣</button>
+          @click="setSplitCount(1)"
+          title="单屏模式">▣</button>
         <button :class="['split-btn', splitCount === 2 && 'active']"
           :disabled="store.tabs.length < 2"
-          @click="setSplitCount(2)" title="左右分屏">⬛⬛</button>
+          @click="setSplitCount(2)"
+          :title="store.tabs.length < 2 ? '需先开启 2 个以上会话' : '左右分屏'">⬛⬛</button>
         <button :class="['split-btn', splitCount === 4 && 'active']"
           :disabled="store.tabs.length < 4"
-          @click="setSplitCount(4)" title="四宫格（最多 4 屏）">⊞</button>
+          @click="setSplitCount(4)"
+          :title="store.tabs.length < 4 ? '需先开启 4 个以上会话' : '四宫格分屏（最多 4 屏）'">⊞</button>
       </div>
 
       <div class="tab-actions">
@@ -53,17 +60,55 @@
 
     <!-- 分屏终端区域 -->
     <div class="terminal-area" :class="`split-${splitCount}`">
-      <!-- split-cell 是固定的 grid 单元格，xterm 挂在其中 -->
       <div v-for="idx in splitCount" :key="idx - 1"
         :class="['split-cell', (idx - 1) === activeSplitIdx && 'focused']"
-        @mousedown="activeSplitIdx = idx - 1"
-        :ref="el => { if (el) splitCells[idx - 1] = el as HTMLElement }">
-        <!-- 当该 slot 没有分配 tab 时，显示占位符 -->
+        @mousedown="onSplitCellClick(idx - 1)">
+
+        <!-- 分屏格标题栏 -->
+        <div class="split-header" @mousedown.stop>
+          <div v-if="splitTabIds[idx - 1]"
+            :class="['split-dot', getSplitTabConnected(idx - 1) ? 'online' : 'offline']" />
+          <span class="split-name">{{ getSplitTabName(idx - 1) }}</span>
+          <div class="split-header-actions">
+            <!-- 换会话按钮 -->
+            <div class="split-picker-wrap">
+              <button class="split-hdr-btn"
+                :title="`切换此分屏的会话（当前：${getSplitTabName(idx - 1)}）`"
+                @click.stop="togglePicker(idx - 1)">⇄</button>
+              <!-- 会话选择下拉 -->
+              <div v-if="pickerOpen[idx - 1]" class="split-picker" @click.stop>
+                <div class="picker-title">选择会话</div>
+                <div v-if="store.tabs.length === 0" class="picker-empty">暂无会话，请先点 ＋</div>
+                <div v-for="tab in store.tabs" :key="tab.id"
+                  :class="['picker-item', tab.id === splitTabIds[idx - 1] && 'current']"
+                  @click="pickFromHeader(idx - 1, tab.id)">
+                  <div :class="['picker-dot', tab.connected ? 'online' : 'offline']" />
+                  <span>{{ tab.name }}</span>
+                  <span v-if="tab.id === splitTabIds[idx - 1]" class="picker-check">✓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- xterm 挂载容器 -->
+        <div class="split-pane"
+          :ref="(el: any) => { if (el) splitCells[idx - 1] = el }">
+        </div>
+
+        <!-- 空分屏占位（绝对定位覆盖 pane） -->
         <div v-if="!splitTabIds[idx - 1]" class="split-placeholder">
-          <span>点击标签页分配到此分屏</span>
+          <div class="placeholder-inner">
+            <span class="placeholder-icon">⌨</span>
+            <span>点击 <b>⇄</b> 选择会话</span>
+            <span>或点击上方标签页分配</span>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- picker 遮罩（点击空白关闭） -->
+    <div v-if="anyPickerOpen" class="picker-mask" @click="closeAllPickers" />
 
     <!-- 主机选择 Modal -->
     <n-modal v-model:show="showHostPicker" preset="card" title="选择主机" style="width:480px">
@@ -71,7 +116,7 @@
       <div v-else class="host-picker-list">
         <div v-for="h in pickerHosts" :key="h.id"
           class="picker-row" @click="pickHost(h)">
-          <span class="picker-dot" />
+          <span class="picker-status-dot" />
           <span class="picker-name">{{ h.name }}</span>
           <span class="picker-ip">{{ h.ip }}:{{ h.port }}</span>
         </div>
@@ -100,29 +145,47 @@ const termTheme = useTerminalThemeStore()
 const store = useTerminalStore()
 const themeOptions = termTheme.themes.map(t => ({ label: t.name, value: t.id }))
 
-// ── 分屏状态 ──────────────────────────────────────────────
+// ── 分屏状态 ─────────────────────────────────────────────
 const splitCount = ref<1 | 2 | 4>(1)
 const activeSplitIdx = ref(0)
-// splitTabIds[i] = 分配给第 i 个分屏格的 tabId（'' 表示空）
+// splitTabIds[i] = 第 i 格显示的 tabId（'' = 空）
 const splitTabIds = ref<string[]>([''])
 
-// 当前 active 分屏正在显示哪个 tab（用于高亮 tab bar）
 const activeSplitTabId = computed(() => splitTabIds.value[activeSplitIdx.value] ?? '')
 
-// 某 tabId 是否在任意分屏中可见
 function isTabInSplit(tabId: string) {
-  return splitTabIds.value.includes(tabId)
+  return splitTabIds.value.some(id => id === tabId)
 }
 
-// ── 分屏格 DOM 引用 ───────────────────────────────────────
-// splitCells[i] = 第 i 个 grid cell 的 HTMLElement
+// ── split-cell 内的 picker 状态 ──────────────────────────
+const pickerOpen = ref<boolean[]>([false, false, false, false])
+const anyPickerOpen = computed(() => pickerOpen.value.some(Boolean))
+function togglePicker(idx: number) {
+  const next = !pickerOpen.value[idx]
+  pickerOpen.value = [false, false, false, false]
+  pickerOpen.value[idx] = next
+}
+function closeAllPickers() {
+  pickerOpen.value = [false, false, false, false]
+}
+
+// ── split-cell DOM 引用 ───────────────────────────────────
 const splitCells: HTMLElement[] = []
-// splitXterms[i] = 第 i 个 grid cell 中运行的 {term, fit, ro}
 const splitXterms: Record<number, { term: Terminal; fit: FitAddon; ro: ResizeObserver }> = {}
-// 每个 tabId 对应的 xterm 挂在哪个 splitIdx（反查）
 const tabSplitIdx: Record<string, number> = {}
 
-// ── 右键菜单 ────────────────────────────────────────────────
+// ── split-cell 辅助 ──────────────────────────────────────
+function getSplitTabName(idx: number) {
+  const id = splitTabIds.value[idx]
+  if (!id) return `分屏 ${idx + 1}`
+  return store.getTab(id)?.name ?? '未知'
+}
+function getSplitTabConnected(idx: number) {
+  const id = splitTabIds.value[idx]
+  return id ? (store.getTab(id)?.connected ?? false) : false
+}
+
+// ── 右键菜单 ────────────────────────────────────────────
 const ctxVisible = ref(false)
 const ctxX = ref(0)
 const ctxY = ref(0)
@@ -142,14 +205,14 @@ function handleCtxSelect(key: string) {
   else if (key === 'duplicate') openTab(tab.hostId, tab.name)
 }
 
-// ── 主题 ─────────────────────────────────────────────────────
+// ── 主题 ────────────────────────────────────────────────
 function applyTerminalTheme(id: string) {
   termTheme.apply(id)
   const newTheme = termTheme.current().theme
   Object.values(splitXterms).forEach(({ term }) => { term.options.theme = newTheme })
 }
 
-// ── 主机选择器 ───────────────────────────────────────────────
+// ── 主机选择器 ───────────────────────────────────────────
 const showHostPicker = ref(false)
 const hostPickerLoading = ref(false)
 const pickerHosts = ref<any[]>([])
@@ -165,19 +228,16 @@ watch(showHostPicker, async (v) => {
 })
 function pickHost(h: any) { showHostPicker.value = false; openTab(h.id, h.name) }
 
-// ── 切换分屏数量 ─────────────────────────────────────────────
+// ── 分屏数量切换 ─────────────────────────────────────────
 function setSplitCount(count: 1 | 2 | 4) {
   if (count > store.tabs.length) return
   splitCount.value = count
-  // 保留已有分配，扩充或截断 splitTabIds
   const cur = splitTabIds.value.slice(0, count)
   while (cur.length < count) {
-    // 找一个尚未被分配的 tab
     const used = new Set(cur.filter(Boolean))
     const next = store.tabs.find(t => !used.has(t.id))
     cur.push(next?.id ?? '')
   }
-  // 释放被截断的分屏中的 xterm
   for (let i = count; i < splitTabIds.value.length; i++) {
     disposeSplitXterm(i)
   }
@@ -186,32 +246,50 @@ function setSplitCount(count: 1 | 2 | 4) {
   nextTick(initAllSplits)
 }
 
-// ── 把 tab 分配到当前 active 分屏 ───────────────────────────
-async function assignTabToActiveSplit(tabId: string) {
-  const idx = activeSplitIdx.value
-  const oldTabId = splitTabIds.value[idx]
-  if (oldTabId === tabId) return // 已经在这里了，focus 即可
+// ── 点击分屏格 ───────────────────────────────────────────
+function onSplitCellClick(idx: number) {
+  activeSplitIdx.value = idx
+  closeAllPickers()
+  const tabId = splitTabIds.value[idx]
+  if (tabId) nextTick(() => splitXterms[idx]?.term.focus())
+}
 
-  // 如果该 tab 已经在另一个 split，先从那里移除
+// ── 通过 tab bar 分配 tab 到当前 active 分屏 ─────────────
+async function assignTabToActiveSplit(tabId: string) {
+  await assignTabToSplit(activeSplitIdx.value, tabId)
+}
+
+// ── 通过 header picker 选择 tab ──────────────────────────
+async function pickFromHeader(idx: number, tabId: string) {
+  closeAllPickers()
+  activeSplitIdx.value = idx
+  await assignTabToSplit(idx, tabId)
+}
+
+async function assignTabToSplit(idx: number, tabId: string) {
+  const oldTabId = splitTabIds.value[idx]
+  if (oldTabId === tabId) {
+    nextTick(() => splitXterms[idx]?.term.focus())
+    return
+  }
+  // 如果该 tab 已在另一个 split，先从那移除
   const prevIdx = tabSplitIdx[tabId]
   if (prevIdx !== undefined && prevIdx !== idx) {
     disposeSplitXterm(prevIdx)
     splitTabIds.value[prevIdx] = ''
     delete tabSplitIdx[tabId]
   }
-
-  // 释放当前 split 里的旧 xterm
+  // 释放当前 split 的旧 xterm
   if (oldTabId) {
     disposeSplitXterm(idx)
     delete tabSplitIdx[oldTabId]
   }
-
   splitTabIds.value[idx] = tabId
   await nextTick()
   await mountXtermToSplit(idx)
 }
 
-// ── 创建 xterm 并挂到第 idx 个 split-cell ────────────────────
+// ── 挂载 xterm 到第 idx 个 split-cell ─────────────────────
 async function mountXtermToSplit(idx: number) {
   await nextTick()
   const tabId = splitTabIds.value[idx]
@@ -221,7 +299,6 @@ async function mountXtermToSplit(idx: number) {
   const cell = splitCells[idx]
   if (!cell) return
 
-  // 已挂载则直接 fit
   if (splitXterms[idx]) {
     splitXterms[idx].fit.fit()
     splitXterms[idx].term.focus()
@@ -239,7 +316,6 @@ async function mountXtermToSplit(idx: number) {
   term.loadAddon(fit)
   term.open(cell)
 
-  // 回放历史输出
   for (const chunk of tab.outputBuf) {
     term.write(chunk instanceof Uint8Array ? chunk : new TextEncoder().encode(chunk as string))
   }
@@ -251,7 +327,6 @@ async function mountXtermToSplit(idx: number) {
   splitXterms[idx] = { term, fit, ro }
   tabSplitIdx[tabId] = idx
 
-  // ── WebSocket ─────────────────────────────────────────────
   if (tab.ws && tab.ws.readyState === WebSocket.OPEN) {
     bindWsToTerm(tab, term)
     term.onData(d => { if (tab.ws!.readyState === WebSocket.OPEN) tab.ws!.send(d) })
@@ -262,7 +337,6 @@ async function mountXtermToSplit(idx: number) {
     return
   }
 
-  // 新建 WS
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
   const ws = new WebSocket(`${proto}//${location.host}/api/ws/ssh/${tab.hostId}?token=${auth.token}`)
   ws.binaryType = 'arraybuffer'
@@ -296,14 +370,13 @@ function bindWsToTerm(tab: TermTab, term: Terminal) {
   }
 }
 
-// ── 释放某个 split-cell 的 xterm ────────────────────────────
+// ── 释放 split-cell 的 xterm ────────────────────────────
 function disposeSplitXterm(idx: number) {
   const x = splitXterms[idx]
   if (!x) return
   x.ro.disconnect()
   x.term.dispose()
   delete splitXterms[idx]
-  // 让 WS 改为纯缓冲模式（不再写入已销毁的 xterm）
   const tabId = splitTabIds.value[idx]
   if (tabId) {
     const tab = store.getTab(tabId)
@@ -316,18 +389,16 @@ function disposeSplitXterm(idx: number) {
   }
 }
 
-// ── 打开 / 关闭 Tab ──────────────────────────────────────────
+// ── 打开 / 关闭 Tab ─────────────────────────────────────
 async function openTab(hostId: number, name: string) {
   const id = `tab-${Date.now()}-${hostId}`
   const tab: TermTab = { id, name, hostId, connected: false, everConnected: false, outputBuf: [] }
   store.addTab(tab)
   await nextTick()
-  // 分配到当前 active split（自动替换该格的旧 tab）
   await assignTabToActiveSplit(id)
 }
 
 function closeTab(id: string) {
-  // 从所有持有该 tab 的 split 中释放
   splitTabIds.value.forEach((tabId, idx) => {
     if (tabId === id) {
       disposeSplitXterm(idx)
@@ -338,21 +409,17 @@ function closeTab(id: string) {
   store.removeTab(id)
 }
 
-// ── 初始化所有分屏 ───────────────────────────────────────────
+// ── 初始化 / 恢复所有分屏 ───────────────────────────────
 async function initAllSplits() {
   await nextTick()
   for (let i = 0; i < splitCount.value; i++) {
-    if (splitTabIds.value[i]) {
-      await mountXtermToSplit(i)
-    }
+    if (splitTabIds.value[i]) await mountXtermToSplit(i)
   }
 }
 
-// ── 恢复 store 中已有 tabs ──────────────────────────────────
 async function restoreExistingTabs() {
   const tabs = store.tabs
   if (!tabs.length) return
-  // 初始化 splitTabIds：每个 split 格自动分配一个 tab
   const newIds: string[] = []
   for (let i = 0; i < splitCount.value; i++) {
     newIds.push(tabs[i]?.id ?? '')
@@ -361,7 +428,6 @@ async function restoreExistingTabs() {
   await initAllSplits()
 }
 
-// ── pendingSSH ───────────────────────────────────────────────
 async function processPendingSSH() {
   const pending: { hostId: number; hostName: string }[] =
     JSON.parse(sessionStorage.getItem('pendingSSH') ?? '[]')
@@ -381,12 +447,8 @@ onActivated(async () => {
   nextTick(() => Object.values(splitXterms).forEach(({ fit }) => fit.fit()))
 })
 
-// 销毁：只清理 xterm，WS 留在 store
 onUnmounted(() => {
-  Object.keys(splitXterms).forEach(k => {
-    const idx = Number(k)
-    disposeSplitXterm(idx)
-  })
+  Object.keys(splitXterms).forEach(k => disposeSplitXterm(Number(k)))
 })
 </script>
 
@@ -400,6 +462,11 @@ onUnmounted(() => {
   border-bottom: 1px solid color-mix(in srgb, var(--terminal-fg) 15%, transparent);
   height: 36px; padding: 0 8px; gap: 2px; overflow-x: auto; flex-shrink: 0;
 }
+.split-hint {
+  font-size: 11px; color: var(--accent); white-space: nowrap;
+  padding: 2px 6px; background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 3px; flex-shrink: 0; margin-right: 4px;
+}
 .tab {
   display: flex; align-items: center; gap: 6px; padding: 4px 10px;
   border-radius: 4px 4px 0 0; cursor: pointer; font-size: 12px;
@@ -407,7 +474,7 @@ onUnmounted(() => {
   border: 1px solid transparent; border-bottom: none; transition: all 0.15s;
 }
 .tab:hover { color: color-mix(in srgb, var(--terminal-fg) 75%, transparent); }
-.tab.visible { color: color-mix(in srgb, var(--terminal-fg) 70%, transparent); }
+.tab.in-split { color: color-mix(in srgb, var(--terminal-fg) 65%, transparent); }
 .tab.active {
   background: var(--terminal-bg); color: var(--terminal-fg);
   border-color: color-mix(in srgb, var(--terminal-fg) 20%, transparent);
@@ -427,14 +494,12 @@ onUnmounted(() => {
 .new-tab-btn:hover { border-color: color-mix(in srgb, var(--terminal-fg) 50%, transparent); color: var(--terminal-fg); }
 
 /* ── 分屏按钮 ── */
-.split-btns {
-  display: flex; gap: 2px; margin-left: 4px; flex-shrink: 0;
-}
+.split-btns { display: flex; gap: 2px; margin-left: 4px; flex-shrink: 0; }
 .split-btn {
   background: transparent;
   border: 1px solid color-mix(in srgb, var(--terminal-fg) 15%, transparent);
   color: color-mix(in srgb, var(--terminal-fg) 50%, transparent);
-  border-radius: 3px; padding: 2px 5px; cursor: pointer; font-size: 11px;
+  border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 11px;
   line-height: 1.4; transition: all 0.15s;
 }
 .split-btn:hover:not(:disabled) {
@@ -451,40 +516,103 @@ onUnmounted(() => {
 .tab-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 .tab-label { font-size: 12px; color: color-mix(in srgb, var(--terminal-fg) 55%, transparent); white-space: nowrap; }
 
-/* ── 终端区域 + 分屏 Grid ── */
+/* ── 终端区域 Grid ── */
 .terminal-area {
   flex: 1; overflow: hidden; background: var(--terminal-bg);
   display: grid; gap: 2px;
 }
-.terminal-area.split-1  { grid-template-columns: 1fr; grid-template-rows: 1fr; }
-.terminal-area.split-2  { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
-.terminal-area.split-4  { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.terminal-area.split-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.terminal-area.split-2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+.terminal-area.split-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 
+/* ── 分屏格 ── */
 .split-cell {
-  overflow: hidden; position: relative;
-  border: 1px solid transparent;
-  transition: border-color 0.15s;
+  display: flex; flex-direction: column; overflow: hidden; position: relative;
+  border: 1px solid transparent; transition: border-color 0.15s;
 }
 .split-cell.focused {
-  border-color: color-mix(in srgb, var(--terminal-fg) 30%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
-/* 空分屏占位符 */
-.split-placeholder {
-  height: 100%; display: flex; align-items: center; justify-content: center;
-}
-.split-placeholder span {
-  font-size: 12px;
-  color: color-mix(in srgb, var(--terminal-fg) 25%, transparent);
+/* ── 分屏格标题栏 ── */
+.split-header {
+  display: flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 6px; flex-shrink: 0;
+  background: color-mix(in srgb, var(--terminal-bg) 70%, #000);
+  border-bottom: 1px solid color-mix(in srgb, var(--terminal-fg) 10%, transparent);
   user-select: none;
 }
+.split-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.split-dot.online { background: var(--success); }
+.split-dot.offline { background: var(--text-muted); }
+.split-name {
+  font-size: 11px; color: color-mix(in srgb, var(--terminal-fg) 60%, transparent);
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.split-header-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.split-hdr-btn {
+  background: transparent; border: none;
+  color: color-mix(in srgb, var(--terminal-fg) 45%, transparent);
+  cursor: pointer; font-size: 12px; padding: 0 4px; border-radius: 3px;
+  line-height: 1.6; transition: all 0.15s;
+}
+.split-hdr-btn:hover {
+  background: color-mix(in srgb, var(--terminal-fg) 12%, transparent);
+  color: var(--terminal-fg);
+}
 
-/* 主机选择弹窗 */
+/* ── 会话选择下拉 ── */
+.split-picker-wrap { position: relative; }
+.split-picker {
+  position: absolute; top: 100%; right: 0; z-index: 200;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 6px; min-width: 180px; padding: 4px 0;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.picker-title {
+  font-size: 11px; color: var(--text-secondary);
+  padding: 4px 12px 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px;
+}
+.picker-empty { font-size: 12px; color: var(--text-secondary); padding: 8px 12px; }
+.picker-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 12px; cursor: pointer; font-size: 12px; color: var(--text-primary);
+  transition: background 0.12s;
+}
+.picker-item:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.picker-item.current { color: var(--accent); }
+.picker-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.picker-dot.online { background: var(--success); }
+.picker-dot.offline { background: var(--text-muted); }
+.picker-check { margin-left: auto; font-size: 12px; color: var(--accent); }
+.picker-mask {
+  position: fixed; inset: 0; z-index: 199;
+}
+
+/* ── 分屏 pane（xterm 容器） ── */
+.split-pane { flex: 1; overflow: hidden; }
+
+/* ── 空分屏占位 ── */
+.split-placeholder {
+  position: absolute; inset: 22px 0 0 0; /* 22px = header 高度 */
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.placeholder-inner {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.placeholder-icon { font-size: 28px; opacity: 0.2; }
+.placeholder-inner span {
+  font-size: 12px; color: color-mix(in srgb, var(--terminal-fg) 25%, transparent);
+}
+.placeholder-inner b { color: color-mix(in srgb, var(--terminal-fg) 40%, transparent); }
+
+/* ── 主机选择弹窗 ── */
 .host-picker-list { display: flex; flex-direction: column; gap: 4px; max-height: 400px; overflow-y: auto; }
 .picker-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 6px;
   cursor: pointer; transition: background 0.15s; }
 .picker-row:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-.picker-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+.picker-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
 .picker-name { font-size: 13px; color: var(--text-primary); flex: 1; }
 .picker-ip { font-size: 12px; color: var(--text-secondary); }
 </style>

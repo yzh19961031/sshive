@@ -184,11 +184,9 @@ func (s *Session) Run(initWidth, initHeight int) error {
 		}
 		if asyncW != nil {
 			asyncW.SendInput(data)
-			// 通知 tracker 开始收集该命令的输出
-			if result.Command != "" {
-				tracker.SetCommand(result.Command)
-			}
 		}
+		// 按下回车：从输出缓冲最后一行提取实际命令（含 Tab 补全等）
+		tracker.OnEnter()
 	}
 
 	<-outputDone
