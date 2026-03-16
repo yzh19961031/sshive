@@ -108,7 +108,15 @@ func (s *Service) ListLogs(tenantID, sessionID int64, page, pageSize int) ([]mod
 	return s.repo.ListLogs(sessionID, page, pageSize)
 }
 
-func (s *Service) ListCommands(tenantID, sessionID int64, page, pageSize int) ([]model.SessionCommand, int64, error) {
+// CommandFilter 用于 ListCommands 的过滤条件
+type CommandFilter struct {
+	Command   string     // 模糊匹配
+	Action    string     // execute / blocked / ""（不过滤）
+	StartTime *time.Time
+	EndTime   *time.Time
+}
+
+func (s *Service) ListCommands(tenantID, sessionID int64, page, pageSize int, f CommandFilter) ([]model.SessionCommand, int64, error) {
 	if _, err := s.repo.GetSession(tenantID, sessionID); err != nil {
 		return nil, 0, fmt.Errorf("session not found")
 	}
@@ -118,7 +126,7 @@ func (s *Service) ListCommands(tenantID, sessionID int64, page, pageSize int) ([
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
-	return s.repo.ListCommands(sessionID, page, pageSize)
+	return s.repo.ListCommands(sessionID, page, pageSize, f)
 }
 
 // CommandListItem 是全局命令记录列表的 API 响应类型

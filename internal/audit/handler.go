@@ -3,6 +3,7 @@ package audit
 import (
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sshive/sshive/internal/auth"
@@ -55,7 +56,22 @@ func (h *Handler) ListCommands(c *gin.Context) {
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	list, total, err := h.svc.ListCommands(tenantID, sessionID, page, pageSize)
+
+	var f CommandFilter
+	f.Command = c.Query("command")
+	f.Action = c.Query("action")
+	if s := c.Query("start_time"); s != "" {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			f.StartTime = &t
+		}
+	}
+	if s := c.Query("end_time"); s != "" {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			f.EndTime = &t
+		}
+	}
+
+	list, total, err := h.svc.ListCommands(tenantID, sessionID, page, pageSize, f)
 	if err != nil {
 		middleware.NotFound(c, err.Error())
 		return

@@ -74,11 +74,23 @@ func (r *Repo) ListLogs(sessionID int64, page, pageSize int) ([]model.SessionLog
 	return list, total, nil
 }
 
-func (r *Repo) ListCommands(sessionID int64, page, pageSize int) ([]model.SessionCommand, int64, error) {
+func (r *Repo) ListCommands(sessionID int64, page, pageSize int, f CommandFilter) ([]model.SessionCommand, int64, error) {
 	var list []model.SessionCommand
 	var total int64
 	offset := (page - 1) * pageSize
 	q := db.DB.Model(&model.SessionCommand{}).Where("session_id = ?", sessionID)
+	if f.Command != "" {
+		q = q.Where("command LIKE ?", "%"+f.Command+"%")
+	}
+	if f.Action != "" {
+		q = q.Where("action = ?", f.Action)
+	}
+	if f.StartTime != nil {
+		q = q.Where("created_at >= ?", f.StartTime)
+	}
+	if f.EndTime != nil {
+		q = q.Where("created_at <= ?", f.EndTime)
+	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

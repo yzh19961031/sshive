@@ -8,24 +8,63 @@
       :pagination="pagination" remote @update:page="loadPage"
       :scroll-x="820" />
 
-    <!-- 命令历史 Drawer -->
-    <n-drawer v-model:show="drawerVisible" :width="420" placement="right">
-      <n-drawer-content :title="`命令记录 — ${drawerSessionLabel}`" closable>
-        <div v-if="commandsLoading" style="text-align:center;padding:40px 0">
-          <n-spin />
+    <!-- 操作记录 Drawer -->
+    <n-drawer v-model:show="drawerVisible" :width="760" placement="right">
+      <n-drawer-content closable>
+        <template #header>
+          <span class="drawer-title">操作记录</span>
+          <span class="drawer-sub">{{ drawerSessionLabel }}</span>
+        </template>
+
+        <!-- 过滤栏 -->
+        <div class="filter-bar">
+          <n-input
+            v-model:value="filterCommand"
+            placeholder="请输入命令"
+            clearable
+            size="small"
+            style="width:180px"
+            @keyup.enter="applyFilter"
+          />
+          <n-select
+            v-model:value="filterAction"
+            :options="actionOptions"
+            placeholder="请选择动作"
+            clearable
+            size="small"
+            style="width:130px"
+          />
+          <n-date-picker
+            v-model:value="filterDateRange"
+            type="datetimerange"
+            clearable
+            size="small"
+            style="width:360px"
+            :shortcuts="dateShortcuts"
+          />
+          <n-button type="primary" size="small" @click="applyFilter">查询</n-button>
+          <n-button size="small" @click="resetFilter">重置</n-button>
         </div>
-        <div v-else-if="commands.length === 0" class="empty-tip">暂无日志记录</div>
-        <div v-else class="cmd-list">
-          <div v-for="log in commands" :key="log.id"
-            :class="['log-item', log.type === 'input' ? 'log-input' : 'log-output']">
-            <span class="log-time">{{ formatTime(log.created_at) }}</span>
-            <code class="log-content">
-              <span v-if="log.type === 'input'" class="log-prefix">❯ </span>{{ log.content }}
-            </code>
-          </div>
-        </div>
+
+        <!-- 命令表格 -->
+        <n-data-table
+          :columns="cmdColumns"
+          :data="cmdList"
+          :loading="cmdLoading"
+          :pagination="cmdPagination"
+          remote
+          @update:page="loadCmdPage"
+          :scroll-x="680"
+          size="small"
+          style="margin-top:12px"
+        />
       </n-drawer-content>
     </n-drawer>
+
+    <!-- 输出详情 Modal -->
+    <n-modal v-model:show="outputVisible" preset="card" title="命令输出" style="width:560px">
+      <pre class="output-pre">{{ outputContent || '（无输出）' }}</pre>
+    </n-modal>
 
     <!-- 回放 Modal -->
     <n-modal v-model:show="replayVisible" :mask-closable="true" display-directive="show">
@@ -43,43 +82,23 @@
 
 <script setup lang="ts">
 import { ref, h, onMounted, nextTick } from 'vue'
-import { NDataTable, NButton, NTag, NDrawer, NDrawerContent, NSpin, NModal } from 'naive-ui'
+import {
+  NDataTable, NButton, NTag, NDrawer, NDrawerContent,
+  NModal, NInput, NSelect, NDatePicker,
+} from 'naive-ui'
 // @ts-ignore
 import * as AsciinemaPlayer from 'asciinema-player'
 import 'asciinema-player/dist/bundle/asciinema-player.css'
-import { sessionApi } from '@/api/session'
-import type { LogItem } from '@/api/session'
+import { sessionApi, type CommandItem } from '@/api/session'
 
+// ── 会话列表 ───────────────────────────────────────────────
 const sessions = ref<any[]>([])
 const loading = ref(false)
 const pagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
 
-// Command drawer state
-const drawerVisible = ref(false)
-const drawerSessionLabel = ref('')
-const commandsLoading = ref(false)
-const commands = ref<LogItem[]>([])
-
-// Replay modal state
-const replayVisible = ref(false)
-const replayTitle = ref('')
-const replayReady = ref(false)
-const playerContainer = ref<HTMLElement>()
-let playerInstance: any = null
-
-function formatTime(ts: string) {
-  return new Date(ts).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
-}
-
 function statusTag(status: string): 'success' | 'warning' | 'default' | 'error' {
-  const map: Record<string, 'success' | 'warning' | 'default' | 'error'> = {
-    active: 'success',
-    interrupted: 'warning',
-    closed: 'default',
-  }
-  return map[status] ?? 'default'
+  return ({ active: 'success', interrupted: 'warning', closed: 'default' } as any)[status] ?? 'default'
 }
-
 function formatDuration(row: any): string {
   const end = row.ended_at ? new Date(row.ended_at) : new Date()
   const diff = Math.floor((end.getTime() - new Date(row.started_at).getTime()) / 1000)
@@ -88,18 +107,121 @@ function formatDuration(row: any): string {
   return `${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m`
 }
 
-async function openCommands(row: any) {
-  drawerSessionLabel.value = `${row.host_name || row.host_id} · ${row.username || row.user_id}`
-  drawerVisible.value = true
-  commandsLoading.value = true
-  commands.value = []
+// ── 操作记录 Drawer ────────────────────────────────────────
+const drawerVisible = ref(false)
+const drawerSessionLabel = ref('')
+const drawerSessionId = ref(0)
+
+// 过滤条件
+const filterCommand = ref('')
+const filterAction = ref<string | null>(null)
+const filterDateRange = ref<[number, number] | null>(null)
+
+const actionOptions = [
+  { label: '执行', value: 'execute' },
+  { label: '阻断', value: 'blocked' },
+]
+const dateShortcuts = {
+  '今天': () => {
+    const s = new Date(); s.setHours(0, 0, 0, 0)
+    const e = new Date(); e.setHours(23, 59, 59, 999)
+    return [s.getTime(), e.getTime()] as [number, number]
+  },
+  '近 7 天': () => {
+    const e = new Date()
+    const s = new Date(e.getTime() - 7 * 86400_000)
+    return [s.getTime(), e.getTime()] as [number, number]
+  },
+}
+
+// 命令表格
+const cmdList = ref<CommandItem[]>([])
+const cmdLoading = ref(false)
+const cmdPagination = ref({ page: 1, pageSize: 20, itemCount: 0 })
+
+// 输出详情
+const outputVisible = ref(false)
+const outputContent = ref('')
+
+const cmdColumns = [
+  {
+    title: '命令', key: 'command', width: 200, ellipsis: { tooltip: true },
+    render: (row: CommandItem) => h('code', { class: 'cmd-code' }, row.command),
+  },
+  {
+    title: '动作', key: 'action', width: 72,
+    render: (row: CommandItem) => h(NTag,
+      { type: row.action === 'blocked' ? 'error' : 'success', size: 'small', round: true },
+      { default: () => row.action === 'blocked' ? '阻断' : '执行' }),
+  },
+  {
+    title: '执行时间', key: 'created_at', width: 160,
+    render: (row: CommandItem) => new Date(row.created_at).toLocaleString('zh-CN', { hour12: false }),
+  },
+  {
+    title: '输出结果', key: 'result',
+    render: (row: CommandItem) => {
+      if (!row.result) return h('span', { style: 'color:var(--text-secondary)' }, '--')
+      const preview = row.result.replace(/\n/g, ' ').slice(0, 50)
+      const hasMore = row.result.length > 50
+      return h('span', {
+        class: 'result-link',
+        onClick: () => { outputContent.value = row.result; outputVisible.value = true },
+      }, hasMore ? preview + '…' : preview)
+    },
+  },
+]
+
+function buildFilterParams() {
+  const params: Record<string, any> = {}
+  if (filterCommand.value) params.command = filterCommand.value
+  if (filterAction.value) params.action = filterAction.value
+  if (filterDateRange.value) {
+    params.start_time = new Date(filterDateRange.value[0]).toISOString()
+    params.end_time = new Date(filterDateRange.value[1]).toISOString()
+  }
+  return params
+}
+
+async function loadCmdPage(page: number) {
+  cmdLoading.value = true
   try {
-    const res = await sessionApi.getLogs(row.id, { page: 1, page_size: 200 })
-    commands.value = res.data.data?.list ?? []
+    const res = await sessionApi.getCommands(drawerSessionId.value, {
+      page, page_size: 20, ...buildFilterParams(),
+    })
+    cmdList.value = res.data.data?.list ?? []
+    cmdPagination.value.itemCount = res.data.data?.total ?? 0
+    cmdPagination.value.page = page
   } finally {
-    commandsLoading.value = false
+    cmdLoading.value = false
   }
 }
+
+function applyFilter() { loadCmdPage(1) }
+function resetFilter() {
+  filterCommand.value = ''
+  filterAction.value = null
+  filterDateRange.value = null
+  loadCmdPage(1)
+}
+
+function openCommands(row: any) {
+  drawerSessionId.value = row.id
+  drawerSessionLabel.value = `${row.host_name || row.host_id} · ${row.username || row.user_id}`
+  filterCommand.value = ''
+  filterAction.value = null
+  filterDateRange.value = null
+  cmdList.value = []
+  drawerVisible.value = true
+  loadCmdPage(1)
+}
+
+// ── 回放 Modal ────────────────────────────────────────────
+const replayVisible = ref(false)
+const replayTitle = ref('')
+const replayReady = ref(false)
+const playerContainer = ref<HTMLElement>()
+let playerInstance: any = null
 
 async function openReplay(row: any) {
   replayTitle.value = `${row.host_name || row.host_id} · ${row.username || row.user_id} · ${new Date(row.started_at).toLocaleString()}`
@@ -117,6 +239,7 @@ async function openReplay(row: any) {
   )
 }
 
+// ── 会话列表列定义 ─────────────────────────────────────────
 const columns = [
   { title: '主机', key: 'host_name', width: 160, ellipsis: { tooltip: true },
     render: (row: any) => row.host_name || String(row.host_id) },
@@ -137,7 +260,7 @@ const columns = [
     title: '操作', key: 'actions', width: 120, fixed: 'right' as const,
     render: (row: any) => h('div', { style: 'display:flex;gap:4px' }, [
       h(NButton, { size: 'tiny', quaternary: true, onClick: () => openCommands(row) },
-        { default: () => '📋 日志' }),
+        { default: () => '📋 操作记录' }),
       h(NButton, { size: 'tiny', quaternary: true, type: 'primary',
         disabled: !row.cast_file_path, onClick: () => openReplay(row) },
         { default: () => '▶ 回放' }),
@@ -164,15 +287,58 @@ onMounted(() => loadPage(1))
 .page { height: 100%; overflow-y: auto; padding: 20px 24px; }
 .page-header { display: flex; align-items: center; margin-bottom: 20px; }
 .page-title { margin: 0; font-size: 16px; font-weight: 600; }
+
+.drawer-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.drawer-sub { font-size: 12px; color: var(--text-secondary); margin-left: 8px; }
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 0 4px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+.cmd-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.result-link {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 220px;
+}
+.result-link:hover { color: var(--accent); }
+
+.output-pre {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--bg-elevated);
+  padding: 12px;
+  border-radius: 6px;
+  max-height: 420px;
+  overflow-y: auto;
+  color: var(--text-primary);
+  margin: 0;
+}
+
 .empty-tip { color: var(--text-secondary); text-align: center; padding: 40px 0; }
-.cmd-list { display: flex; flex-direction: column; gap: 10px; }
-.log-item { display: flex; flex-direction: column; gap: 1px; margin-bottom: 6px; }
-.log-time { font-size: 11px; color: var(--text-secondary); }
-.log-content { font-family: monospace; font-size: 12px; padding: 3px 8px; border-radius: 4px;
-  word-break: break-all; white-space: pre-wrap; display: block; }
-.log-input .log-content { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); }
-.log-output .log-content { background: var(--bg-elevated); color: var(--text-primary); }
-.log-prefix { opacity: 0.6; }
+
 .replay-dialog {
   width: min(90vw, 1000px);
   background: #1a1a2e;
@@ -200,8 +366,7 @@ onMounted(() => loadPage(1))
   background: rgba(255,255,255,0.08);
   border: none;
   color: rgba(255,255,255,0.6);
-  width: 28px;
-  height: 28px;
+  width: 28px; height: 28px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
