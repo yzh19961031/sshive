@@ -87,12 +87,14 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 type QueryReq struct {
-	SQL string `json:"sql" binding:"required"`
+	SQL      string `json:"sql"      binding:"required"`
+	Database string `json:"database"`
 }
 
 // Query POST /api/db-servers/:id/query
 func (h *Handler) Query(c *gin.Context) {
 	tenantID := auth.GetTenantID(c.Request.Context())
+	userID := auth.GetUserID(c.Request.Context())
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid id"})
@@ -103,7 +105,7 @@ func (h *Handler) Query(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		return
 	}
-	result, err := h.svc.Query(tenantID, id, req.SQL)
+	result, err := h.svc.Query(tenantID, id, userID, req.SQL, req.Database)
 	if err != nil {
 		if strings.Contains(err.Error(), "不支持多语句") {
 			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})

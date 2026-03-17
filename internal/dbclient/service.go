@@ -86,60 +86,71 @@ func (s *Service) openDB(srv *model.DBServer) (*sql.DB, error) {
 	return db, nil
 }
 
-// Query 执行单条 SELECT，返回结果（超过 maxRows 截断）
-func (s *Service) Query(tenantID, serverID int64, sqlStr string) (*QueryResult, error) {
-	// 安全检查：禁止多语句
+// Query 执行单条 SQL，返回结果；异步写审计日志
+func (s *Service) Query(tenantID, serverID, userID int64, sqlStr, database string) (*QueryResult, error) {
 	if strings.Count(strings.TrimRight(sqlStr, "; \t\n"), ";") > 0 {
 		return nil, fmt.Errorf("不支持多语句执行")
 	}
 
 	srv, err := s.repo.GetByID(tenantID, serverID)
-	if err != nil {
-		return nil, err
-	}
+	if err != nil { return nil, err }
+	if database != "" { srv.Database = database }
 
 	db, err := s.openDB(srv)
-	if err != nil {
-		return nil, err
-	}
+	if err != nil { return nil, err }
 	defer db.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 	defer cancel()
 
-	rows, err := db.QueryContext(ctx, sqlStr)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	start := time.Now()
+	rows, queryErr := db.QueryContext(ctx, sqlStr)
+	durationMs := time.Since(start).Milliseconds()
 
-	cols, _ := rows.Columns()
-	result := &QueryResult{Columns: cols}
-
-	for rows.Next() {
-		vals := make([]interface{}, len(cols))
-		ptrs := make([]interface{}, len(cols))
-		for i := range vals {
-			ptrs[i] = &vals[i]
-		}
-		if err := rows.Scan(ptrs...); err != nil {
-			continue
-		}
-		row := make([]interface{}, len(cols))
-		for i, v := range vals {
-			if b, ok := v.([]byte); ok {
-				row[i] = string(b)
-			} else {
-				row[i] = v
+	var result *QueryResult
+	if queryErr == nil {
+		defer rows.Close()
+		cols, _ := rows.Columns()
+		result = &QueryResult{Columns: cols}
+		for rows.Next() {
+			vals := make([]interface{}, len(cols))
+			ptrs := make([]interface{}, len(cols))
+			for i := range vals { ptrs[i] = &vals[i] }
+			if err := rows.Scan(ptrs...); err != nil { continue }
+			row := make([]interface{}, len(cols))
+			for i, v := range vals {
+				if b, ok := v.([]byte); ok { row[i] = string(b) } else { row[i] = v }
 			}
+			result.Rows = append(result.Rows, row)
+			result.Total++
+			if result.Total >= maxRows { break }
 		}
-		result.Rows = append(result.Rows, row)
-		result.Total++
-		if result.Total >= maxRows {
-			break
+		if rowsErr := rows.Err(); rowsErr != nil {
+			queryErr = rowsErr
 		}
 	}
-	return result, rows.Err()
+
+	// 异步写审计日志（此时 result.Total 已确定）
+	go func() {
+		logEntry := &model.DBQueryLog{
+			TenantID:   tenantID,
+			DBServerID: serverID,
+			UserID:     userID,
+			Database:   database,
+			SQL:        sqlStr,
+			DurationMs: durationMs,
+		}
+		if result != nil {
+			logEntry.RowsReturned = result.Total
+		}
+		if queryErr != nil {
+			logEntry.ErrorMsg = queryErr.Error()
+		}
+		_ = s.repo.CreateQueryLog(logEntry)
+	}()
+
+	if queryErr != nil { return nil, queryErr }
+	return result, nil
 }
 
 // ListDatabases 获取所有数据库名
