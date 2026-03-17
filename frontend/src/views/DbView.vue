@@ -435,9 +435,23 @@ async function askAI() {
   aiStreamingContent.value = ''
   aiLoading.value = true
 
-  const dbContext = activeSrv.value
-    ? `${activeSrv.value.type === 'mysql' ? 'MySQL' : 'PostgreSQL'}${selectedDb.value ? ` · ${selectedDb.value} 数据库` : ''}`
-    : ''
+  const dbType = activeSrv.value ? (activeSrv.value.type === 'mysql' ? 'MySQL' : 'PostgreSQL') : ''
+  // 确保当前选中数据库的表列表已加载
+  if (activeSrvId.value && selectedDb.value) {
+    const key = `${activeSrvId.value}:${selectedDb.value}`
+    if (!tableMap.value[key]) {
+      try {
+        const r = await dbApi.tables(activeSrvId.value, selectedDb.value)
+        tableMap.value[key] = r.data.data ?? []
+      } catch { /* ignore */ }
+    }
+  }
+  const tables = activeSrvId.value && selectedDb.value
+    ? (tableMap.value[`${activeSrvId.value}:${selectedDb.value}`] ?? [])
+    : []
+  let dbContext = dbType
+  if (selectedDb.value) dbContext += ` · 数据库: ${selectedDb.value}`
+  if (tables.length) dbContext += `\n可用的表: ${tables.join(', ')}`
 
   await streamSQLCommand({
     messages: aiMessages.value,
