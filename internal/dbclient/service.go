@@ -4,7 +4,6 @@ package dbclient
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -39,7 +38,7 @@ func NewService(repo *Repo) *Service {
 }
 
 func (s *Service) encryptionKey() ([]byte, error) {
-	return base64.StdEncoding.DecodeString(config.C.EncryptKey)
+	return encrypt.KeyFromBase64(config.C.EncryptKey)
 }
 
 func (s *Service) openDB(srv *model.DBServer) (*sql.DB, error) {
@@ -153,7 +152,11 @@ func (s *Service) ListDatabases(tenantID, serverID int64) ([]string, error) {
 	case DBTypePostgres:
 		q = "SELECT datname FROM pg_database WHERE datistemplate = false"
 	}
-	rows, err := db.Query(q)
+
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +193,11 @@ func (s *Service) ListTables(tenantID, serverID int64, database string) ([]strin
 	case DBTypePostgres:
 		q = "SELECT tablename FROM pg_tables WHERE schemaname='public'"
 	}
-	rows, err := db.Query(q)
+
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, q)
 	if err != nil {
 		return nil, err
 	}
