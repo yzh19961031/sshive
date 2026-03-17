@@ -107,6 +107,7 @@ const navGroups = [
     label: '安全',
     items: [
       { path: '/audit/sessions',  icon: '📋', label: '审计日志' },
+      { path: '/db-audit',        icon: '📋', label: 'DB 查询审计' },
       { path: '/settings/rules',  icon: '⚠', label: '高危规则' },
     ],
   },

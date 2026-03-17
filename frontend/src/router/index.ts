@@ -22,6 +22,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'settings/users', component: () => import('@/views/UsersView.vue') },
       { path: 'settings/profile', component: () => import('@/views/ProfileView.vue') },
       { path: 'db', component: () => import('@/views/DbView.vue') },
+      { path: 'db-audit', component: () => import('@/views/DbAuditView.vue') },
     ]
   },
   { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
