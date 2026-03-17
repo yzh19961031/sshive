@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -146,7 +147,9 @@ func (s *Service) Query(tenantID, serverID, userID int64, sqlStr, database strin
 		if queryErr != nil {
 			logEntry.ErrorMsg = queryErr.Error()
 		}
-		_ = s.repo.CreateQueryLog(logEntry)
+		if err := s.repo.CreateQueryLog(logEntry); err != nil {
+			slog.Error("failed to write db query log", "error", err)
+		}
 	}()
 
 	if queryErr != nil { return nil, queryErr }

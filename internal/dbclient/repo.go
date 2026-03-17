@@ -33,22 +33,28 @@ func (r *Repo) CreateQueryLog(log *model.DBQueryLog) error {
 
 // ListQueryLogs 分页查询日志（仅限本租户）
 func (r *Repo) ListQueryLogs(tenantID int64, serverID, userID int64, startTime, endTime string, page, pageSize int) ([]model.DBQueryLog, int64, error) {
-	q := r.db.Where("tenant_id = ?", tenantID)
-	if serverID > 0 {
-		q = q.Where("db_server_id = ?", serverID)
+	buildQuery := func() *gorm.DB {
+		q := r.db.Model(&model.DBQueryLog{}).Where("tenant_id = ?", tenantID)
+		if serverID > 0 {
+			q = q.Where("db_server_id = ?", serverID)
+		}
+		if userID > 0 {
+			q = q.Where("user_id = ?", userID)
+		}
+		if startTime != "" {
+			q = q.Where("created_at >= ?", startTime)
+		}
+		if endTime != "" {
+			q = q.Where("created_at <= ?", endTime)
+		}
+		return q
 	}
-	if userID > 0 {
-		q = q.Where("user_id = ?", userID)
-	}
-	if startTime != "" {
-		q = q.Where("created_at >= ?", startTime)
-	}
-	if endTime != "" {
-		q = q.Where("created_at <= ?", endTime)
-	}
+
 	var total int64
-	q.Model(&model.DBQueryLog{}).Count(&total)
+	if err := buildQuery().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	var list []model.DBQueryLog
-	err := q.Order("created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list).Error
+	err := buildQuery().Order("created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list).Error
 	return list, total, err
 }
