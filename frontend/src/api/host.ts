@@ -12,6 +12,8 @@ export interface Host {
   tags: string[]
   group_id: number | null
   created_at: string
+  jump_host_id?: number
+  jump_host?: Host
 }
 
 export const hostApi = {

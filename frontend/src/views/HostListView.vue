@@ -28,6 +28,7 @@
                 <div class="card-header">
                   <div :class="['status-dot', host.status === 1 ? 'online' : 'offline']" />
                   <span class="host-name">{{ host.name }}</span>
+                  <span v-if="host.jump_host_id" style="margin-left:4px;font-size:10px;color:var(--text-secondary)">⤳跳板</span>
                 </div>
                 <div class="host-meta">{{ host.ip }}:{{ host.port }}</div>
                 <div class="host-tags">
@@ -44,6 +45,7 @@
               <div v-for="host in group.hosts" :key="host.id" class="list-row">
                 <div :class="['status-dot', host.status === 1 ? 'online' : 'offline']" />
                 <span class="host-name">{{ host.name }}</span>
+                <span v-if="host.jump_host_id" style="margin-left:4px;font-size:10px;color:var(--text-secondary)">⤳跳板</span>
                 <span class="host-ip">{{ host.ip }}:{{ host.port }}</span>
                 <div class="list-actions">
                   <n-button size="tiny" type="primary" @click="connectSSH(host)">SSH</n-button>
@@ -126,6 +128,15 @@
               </div>
             </transition>
           </div>
+        </n-form-item>
+
+        <n-form-item label="跳板机" path="jump_host_id">
+          <n-select
+            v-model:value="addForm.jump_host_id"
+            :options="jumpHostOptions"
+            placeholder="不使用跳板机"
+            clearable
+          />
         </n-form-item>
 
         <n-form-item label="分组" path="group_id">
@@ -227,6 +238,10 @@ const groupOptions = computed(() =>
   groups.value.map(g => ({ label: g.name, value: g.id }))
 )
 
+const jumpHostOptions = computed(() =>
+  hosts.value.map(h => ({ label: `${h.name} (${h.ip})`, value: h.id }))
+)
+
 const addForm = reactive({
   name: '',
   ip: '',
@@ -235,6 +250,7 @@ const addForm = reactive({
   credential_id: null as number | null,
   tags: [] as string[],
   group_id: null as number | null,
+  jump_host_id: undefined as number | undefined,
 })
 const saving = ref(false)
 const hostError = ref('')
@@ -289,6 +305,7 @@ function openAddModal() {
   addForm.credential_id = null
   addForm.tags = []
   addForm.group_id = null
+  addForm.jump_host_id = undefined
   hostError.value = ''
   showNewCred.value = false
   newCred.name = ''
@@ -319,6 +336,7 @@ async function submitAddHost() {
       status: 1,
       tags: addForm.tags,
       group_id: addForm.group_id,
+      jump_host_id: addForm.jump_host_id,
     })
     showAddModal.value = false
     await loadHosts()
