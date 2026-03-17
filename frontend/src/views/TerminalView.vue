@@ -115,13 +115,25 @@
       <div v-if="aiPanelOpen" class="ai-panel">
         <div class="ai-panel-header">
           <span>✦ AI Shell 助手</span>
-          <button class="ai-close" @click="aiPanelOpen = false">×</button>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button v-if="aiMessages.length" class="ai-clear-btn" @click="clearHistory" title="清除对话">清除</button>
+            <button class="ai-close" @click="aiPanelOpen = false">×</button>
+          </div>
         </div>
-        <div class="ai-result" v-if="aiResult || aiLoading">
-          <pre class="ai-code">{{ aiResult }}<span v-if="aiLoading" class="ai-cursor">▌</span></pre>
-          <button v-if="aiResult && !aiLoading" class="ai-insert-btn" @click="insertCommand">
-            插入终端
-          </button>
+        <!-- 对话历史 -->
+        <div class="ai-history" ref="aiHistoryEl">
+          <div v-for="(msg, i) in aiMessages" :key="i" :class="['ai-msg', `ai-msg-${msg.role}`]">
+            <div class="ai-msg-label">{{ msg.role === 'user' ? '你' : 'AI' }}</div>
+            <pre class="ai-code">{{ msg.content }}</pre>
+            <button v-if="msg.role === 'assistant'" class="ai-insert-btn" @click="insertCommand(msg.content)">
+              插入终端
+            </button>
+          </div>
+          <!-- 正在流式输出 -->
+          <div v-if="aiStreamingContent || aiLoading" class="ai-msg ai-msg-assistant">
+            <div class="ai-msg-label">AI</div>
+            <pre class="ai-code">{{ aiStreamingContent }}<span v-if="aiLoading" class="ai-cursor">▌</span></pre>
+          </div>
         </div>
         <div class="ai-input-row">
           <textarea
@@ -170,7 +182,7 @@ import { useAuthStore } from '@/stores/auth'
 import { hostApi } from '@/api/host'
 import { useTerminalThemeStore } from '@/stores/terminalTheme'
 import { useTerminalStore, type TermTab } from '@/stores/terminal'
-import { streamShellCommand } from '@/api/ai'
+import { streamShellCommand, type AIMessage } from '@/api/ai'
 
 const auth = useAuthStore()
 const termTheme = useTerminalThemeStore()
@@ -204,30 +216,51 @@ function closeAllPickers() {
 // ── AI Shell 状态 ─────────────────────────────────────────
 const aiPanelOpen = ref(false)
 const aiPrompt = ref('')
-const aiResult = ref('')
 const aiLoading = ref(false)
+const aiMessages = ref<AIMessage[]>([])
+const aiStreamingContent = ref('')
+const aiHistoryEl = ref<HTMLElement>()
+
+function scrollAIToBottom() {
+  nextTick(() => { if (aiHistoryEl.value) aiHistoryEl.value.scrollTop = aiHistoryEl.value.scrollHeight })
+}
 
 async function askAI() {
   if (!aiPrompt.value.trim() || aiLoading.value) return
-  aiResult.value = ''
+  const userMsg: AIMessage = { role: 'user', content: aiPrompt.value.trim() }
+  aiMessages.value.push(userMsg)
+  aiPrompt.value = ''
+  aiStreamingContent.value = ''
   aiLoading.value = true
   await streamShellCommand({
-    prompt: aiPrompt.value,
-    onChunk: (text) => { aiResult.value += text },
-    onDone: () => { aiLoading.value = false },
-    onError: (err) => { aiResult.value = `错误：${err}`; aiLoading.value = false },
+    messages: aiMessages.value,
+    onChunk: (text) => { aiStreamingContent.value += text; scrollAIToBottom() },
+    onDone: () => {
+      if (aiStreamingContent.value) {
+        aiMessages.value.push({ role: 'assistant', content: aiStreamingContent.value })
+        aiStreamingContent.value = ''
+      }
+      aiLoading.value = false
+    },
+    onError: (err) => {
+      aiMessages.value.push({ role: 'assistant', content: `错误：${err}` })
+      aiStreamingContent.value = ''
+      aiLoading.value = false
+    },
   })
 }
 
-function insertCommand() {
-  const xterm = splitXterms[activeSplitIdx.value]
-  if (!xterm) return
-  const cmd = aiResult.value.trim()
+function insertCommand(cmd: string) {
   const tabId = splitTabIds.value[activeSplitIdx.value]
   const tab = tabId ? store.getTab(tabId) : null
   if (tab?.ws?.readyState === WebSocket.OPEN) {
-    tab.ws.send(cmd)
+    tab.ws.send(cmd.trim())
   }
+}
+
+function clearHistory() {
+  aiMessages.value = []
+  aiStreamingContent.value = ''
 }
 
 // ── split-cell DOM 引用 ───────────────────────────────────
@@ -712,7 +745,17 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 .ai-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 16px; padding: 0; }
-.ai-result { flex: 1; overflow-y: auto; padding: 10px 12px; }
+.ai-clear-btn {
+  background: none; border: 1px solid color-mix(in srgb, var(--terminal-fg) 20%, transparent);
+  color: color-mix(in srgb, var(--terminal-fg) 50%, transparent);
+  border-radius: 3px; padding: 1px 6px; cursor: pointer; font-size: 11px;
+}
+.ai-clear-btn:hover { border-color: var(--danger); color: var(--danger); }
+.ai-history { flex: 1; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 10px; }
+.ai-msg { display: flex; flex-direction: column; gap: 4px; }
+.ai-msg-label { font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--terminal-fg) 40%, transparent); }
+.ai-msg-user .ai-msg-label { color: var(--accent); }
+.ai-msg-user .ai-code { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .ai-code {
   font-family: 'JetBrains Mono', monospace; font-size: 12px;
   color: var(--terminal-fg); white-space: pre-wrap; word-break: break-all;

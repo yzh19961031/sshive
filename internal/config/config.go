@@ -26,8 +26,10 @@ type Config struct {
 }
 
 type AIConfig struct {
-	APIKey string `yaml:"api_key"`
-	Model  string `yaml:"model"`
+	Provider string `yaml:"provider"` // anthropic | openai (default: anthropic)
+	APIKey   string `yaml:"api_key"`
+	Model    string `yaml:"model"`
+	BaseURL  string `yaml:"base_url"` // optional, for OpenAI-compatible endpoints
 }
 
 var C Config

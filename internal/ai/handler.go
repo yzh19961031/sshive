@@ -17,11 +17,11 @@ func NewHandler(svc *Service) *Handler {
 }
 
 type ShellRequest struct {
-	Prompt string `json:"prompt" binding:"required"`
-	OSInfo string `json:"os_info"`
+	Messages []Message `json:"messages" binding:"required,min=1"`
+	OSInfo   string    `json:"os_info"`
 }
 
-// Shell 接收自然语言，SSE 流式返回 Shell 命令
+// Shell 接收多轮对话历史，SSE 流式返回 Shell 命令
 func (h *Handler) Shell(c *gin.Context) {
 	var req ShellRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -37,18 +37,26 @@ func (h *Handler) Shell(c *gin.Context) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		errCh <- h.svc.StreamShellCommand(c.Request.Context(), req.Prompt, req.OSInfo, chunk)
+		errCh <- h.svc.StreamShellCommand(c.Request.Context(), req.Messages, req.OSInfo, chunk)
 		close(chunk)
 	}()
 
+	var streamErr error
 	c.Stream(func(w io.Writer) bool {
 		select {
 		case text, ok := <-chunk:
 			if !ok {
-				fmt.Fprintf(w, "event: done\ndata: \n\n")
+				if streamErr != nil {
+					fmt.Fprintf(w, "event: error\ndata: %s\n\n", streamErr.Error())
+				} else {
+					fmt.Fprintf(w, "event: done\ndata: \n\n")
+				}
 				return false
 			}
 			fmt.Fprintf(w, "data: %s\n\n", text)
+			return true
+		case err := <-errCh:
+			streamErr = err
 			return true
 		case <-c.Request.Context().Done():
 			return false

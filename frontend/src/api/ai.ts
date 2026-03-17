@@ -1,8 +1,13 @@
 // frontend/src/api/ai.ts
 import { useAuthStore } from '@/stores/auth'
 
+export interface AIMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface ShellStreamOptions {
-  prompt: string
+  messages: AIMessage[]
   osInfo?: string
   onChunk: (text: string) => void
   onDone: () => void
@@ -17,7 +22,7 @@ export async function streamShellCommand(opts: ShellStreamOptions) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${auth.token}`,
     },
-    body: JSON.stringify({ prompt: opts.prompt, os_info: opts.osInfo ?? '' }),
+    body: JSON.stringify({ messages: opts.messages, os_info: opts.osInfo ?? '' }),
   })
 
   if (!res.ok || !res.body) {
@@ -28,6 +33,7 @@ export async function streamShellCommand(opts: ShellStreamOptions) {
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buf = ''
+  let lastEvent = ''
 
   while (true) {
     const { done, value } = await reader.read()
@@ -36,8 +42,15 @@ export async function streamShellCommand(opts: ShellStreamOptions) {
     const lines = buf.split('\n')
     buf = lines.pop() ?? ''
     for (const line of lines) {
-      if (line.startsWith('event: done')) { opts.onDone(); return }
-      if (line.startsWith('data: ')) opts.onChunk(line.slice(6))
+      if (line.startsWith('event: ')) {
+        lastEvent = line.slice(7).trim()
+      } else if (line.startsWith('data: ')) {
+        const data = line.slice(6)
+        if (lastEvent === 'done') { opts.onDone(); return }
+        if (lastEvent === 'error') { opts.onError(data); return }
+        opts.onChunk(data)
+        lastEvent = ''
+      }
     }
   }
   opts.onDone()
