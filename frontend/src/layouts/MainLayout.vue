@@ -100,6 +100,7 @@ const navGroups = [
       { path: '/hosts',       icon: '⬡',  label: '主机列表' },
       { path: '/host-groups', icon: '◫',  label: '主机分组' },
       { path: '/terminal',  icon: '⌨',  label: 'Terminal' },
+      { path: '/db',        icon: '🗄',  label: '数据库' },
     ],
   },
   {
