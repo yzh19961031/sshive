@@ -28,6 +28,7 @@
                 <div class="card-header">
                   <div :class="['status-dot', host.status === 1 ? 'online' : 'offline']" />
                   <span class="host-name">{{ host.name }}</span>
+                  <span v-if="host.jump_host_id" style="margin-left:4px;font-size:10px;color:var(--text-secondary)">⤳跳板</span>
                 </div>
                 <div class="host-meta">{{ host.ip }}:{{ host.port }}</div>
                 <div class="host-tags">
@@ -36,6 +37,7 @@
                 <div class="card-actions">
                   <n-button size="tiny" type="primary" @click="connectSSH(host)">SSH</n-button>
                   <n-button size="tiny" @click="connectSFTP(host)">SFTP</n-button>
+                  <n-button size="tiny" @click="openEditModal(host)">编辑</n-button>
                   <n-button size="tiny" type="error" @click="deleteHost(host)">删除</n-button>
                 </div>
               </div>
@@ -44,10 +46,12 @@
               <div v-for="host in group.hosts" :key="host.id" class="list-row">
                 <div :class="['status-dot', host.status === 1 ? 'online' : 'offline']" />
                 <span class="host-name">{{ host.name }}</span>
+                <span v-if="host.jump_host_id" style="margin-left:4px;font-size:10px;color:var(--text-secondary)">⤳跳板</span>
                 <span class="host-ip">{{ host.ip }}:{{ host.port }}</span>
                 <div class="list-actions">
                   <n-button size="tiny" type="primary" @click="connectSSH(host)">SSH</n-button>
                   <n-button size="tiny" @click="connectSFTP(host)">SFTP</n-button>
+                  <n-button size="tiny" @click="openEditModal(host)">编辑</n-button>
                   <n-button size="tiny" type="error" @click="deleteHost(host)">删除</n-button>
                 </div>
               </div>
@@ -128,14 +132,48 @@
           </div>
         </n-form-item>
 
-        <n-form-item label="分组" path="group_id">
+        <n-form-item label="跳板机" path="jump_host_id">
           <n-select
-            v-model:value="addForm.group_id"
-            :options="groupOptions"
-            placeholder="选择分组（可选）"
+            v-model:value="addForm.jump_host_id"
+            :options="jumpHostOptions"
+            placeholder="不使用跳板机"
             clearable
           />
         </n-form-item>
+
+        <n-form-item label="分组" path="group_id">
+          <div style="width:100%">
+            <div style="display:flex;gap:8px;align-items:center">
+              <n-select
+                v-model:value="addForm.group_id"
+                :options="groupOptions"
+                placeholder="选择分组（可选）"
+                clearable
+                style="flex:1"
+              />
+              <n-button size="small" @click="showNewGroup = !showNewGroup">
+                {{ showNewGroup ? '收起' : '+ 新建' }}
+              </n-button>
+            </div>
+            <transition name="slide">
+              <div v-if="showNewGroup" class="new-cred-box">
+                <div class="new-cred-title">新建分组</div>
+                <n-form-item label="分组名称" :show-feedback="false" style="margin-bottom:8px">
+                  <n-input v-model:value="newGroupName" placeholder="例如：生产环境" size="small" />
+                </n-form-item>
+                <n-button
+                  type="primary" size="small" :loading="savingGroup"
+                  :disabled="!newGroupName"
+                  @click="createGroup(addForm)"
+                >
+                  保存分组并选中
+                </n-button>
+                <span v-if="groupError" style="margin-left:8px;color:var(--danger);font-size:12px">{{ groupError }}</span>
+              </div>
+            </transition>
+          </div>
+        </n-form-item>
+
         <n-form-item label="标签" path="tags">
           <n-dynamic-tags v-model:value="addForm.tags" />
         </n-form-item>
@@ -145,6 +183,131 @@
         <div style="display:flex;justify-content:flex-end;gap:8px">
           <n-button @click="showAddModal = false">取消</n-button>
           <n-button type="primary" :loading="saving" @click="submitAddHost">确认添加</n-button>
+        </div>
+      </template>
+    </n-modal>
+
+    <!-- Edit Host Modal -->
+    <n-modal v-model:show="showEditModal" preset="card" title="编辑主机" style="width: 540px" :mask-closable="false">
+      <n-form ref="editFormRef" :model="editForm" :rules="editRules" label-placement="left" label-width="80">
+        <n-form-item label="主机名称" path="name">
+          <n-input v-model:value="editForm.name" placeholder="例如：生产-Web-01" />
+        </n-form-item>
+        <n-form-item label="IP 地址" path="ip">
+          <n-input v-model:value="editForm.ip" placeholder="192.168.1.100" />
+        </n-form-item>
+        <n-form-item label="端口" path="port">
+          <n-input-number v-model:value="editForm.port" :min="1" :max="65535" style="width:100%" />
+        </n-form-item>
+        <n-form-item label="认证方式" path="auth_type">
+          <n-select
+            v-model:value="editForm.auth_type"
+            :options="authTypeOptions"
+            @update:value="onAuthTypeChangeEdit"
+          />
+        </n-form-item>
+
+        <!-- 凭据选择 + 内联新建 -->
+        <n-form-item label="凭据" path="credential_id">
+          <div style="width:100%">
+            <div style="display:flex;gap:8px;align-items:center">
+              <n-select
+                v-model:value="editForm.credential_id"
+                :options="filteredCredentialOptionsEdit"
+                :loading="loadingCredentials"
+                placeholder="选择已有凭据"
+                style="flex:1"
+                clearable
+              />
+              <n-button size="small" @click="showNewCredEdit = !showNewCredEdit">
+                {{ showNewCredEdit ? '收起' : '+ 新建' }}
+              </n-button>
+            </div>
+
+            <!-- 内联新建凭据表单 -->
+            <transition name="slide">
+              <div v-if="showNewCredEdit" class="new-cred-box">
+                <div class="new-cred-title">新建凭据</div>
+                <n-form-item label="凭据名称" :show-feedback="false" style="margin-bottom:8px">
+                  <n-input v-model:value="newCredEdit.name" placeholder="例如：root-密码" size="small" />
+                </n-form-item>
+                <n-form-item label="用户名" :show-feedback="false" style="margin-bottom:8px">
+                  <n-input v-model:value="newCredEdit.username" placeholder="root" size="small" />
+                </n-form-item>
+                <n-form-item :label="editForm.auth_type === 'password' ? '密码' : '私钥'" :show-feedback="false" style="margin-bottom:8px">
+                  <n-input
+                    v-model:value="newCredEdit.secret"
+                    :type="editForm.auth_type === 'password' ? 'password' : 'textarea'"
+                    :placeholder="editForm.auth_type === 'password' ? '登录密码' : '粘贴 PEM 私钥内容'"
+                    show-password-on="click"
+                    size="small"
+                    :rows="editForm.auth_type === 'key' ? 4 : 1"
+                  />
+                </n-form-item>
+                <n-button
+                  type="primary" size="small" :loading="savingCredEdit"
+                  :disabled="!newCredEdit.name || !newCredEdit.username || !newCredEdit.secret"
+                  @click="createCredentialForEdit"
+                >
+                  保存凭据并选中
+                </n-button>
+                <span v-if="credErrorEdit" style="margin-left:8px;color:var(--danger);font-size:12px">{{ credErrorEdit }}</span>
+              </div>
+            </transition>
+          </div>
+        </n-form-item>
+
+        <n-form-item label="跳板机" path="jump_host_id">
+          <n-select
+            v-model:value="editForm.jump_host_id"
+            :options="jumpHostOptionsForEdit"
+            placeholder="不使用跳板机"
+            clearable
+          />
+        </n-form-item>
+
+        <n-form-item label="分组" path="group_id">
+          <div style="width:100%">
+            <div style="display:flex;gap:8px;align-items:center">
+              <n-select
+                v-model:value="editForm.group_id"
+                :options="groupOptions"
+                placeholder="选择分组（可选）"
+                clearable
+                style="flex:1"
+              />
+              <n-button size="small" @click="showNewGroup = !showNewGroup">
+                {{ showNewGroup ? '收起' : '+ 新建' }}
+              </n-button>
+            </div>
+            <transition name="slide">
+              <div v-if="showNewGroup" class="new-cred-box">
+                <div class="new-cred-title">新建分组</div>
+                <n-form-item label="分组名称" :show-feedback="false" style="margin-bottom:8px">
+                  <n-input v-model:value="newGroupName" placeholder="例如：生产环境" size="small" />
+                </n-form-item>
+                <n-button
+                  type="primary" size="small" :loading="savingGroup"
+                  :disabled="!newGroupName"
+                  @click="createGroup(editForm)"
+                >
+                  保存分组并选中
+                </n-button>
+                <span v-if="groupError" style="margin-left:8px;color:var(--danger);font-size:12px">{{ groupError }}</span>
+              </div>
+            </transition>
+          </div>
+        </n-form-item>
+
+        <n-form-item label="标签" path="tags">
+          <n-dynamic-tags v-model:value="editForm.tags" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <p v-if="editHostError" style="color:var(--danger);font-size:12px;margin:0 0 8px">{{ editHostError }}</p>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <n-button @click="showEditModal = false">取消</n-button>
+          <n-button type="primary" :loading="editSaving" @click="submitEditHost">保存修改</n-button>
         </div>
       </template>
     </n-modal>
@@ -227,6 +390,10 @@ const groupOptions = computed(() =>
   groups.value.map(g => ({ label: g.name, value: g.id }))
 )
 
+const jumpHostOptions = computed(() =>
+  hosts.value.map(h => ({ label: `${h.name} (${h.ip})`, value: h.id }))
+)
+
 const addForm = reactive({
   name: '',
   ip: '',
@@ -235,6 +402,7 @@ const addForm = reactive({
   credential_id: null as number | null,
   tags: [] as string[],
   group_id: null as number | null,
+  jump_host_id: undefined as number | undefined,
 })
 const saving = ref(false)
 const hostError = ref('')
@@ -253,6 +421,160 @@ const addRules = {
 function onAuthTypeChange() {
   addForm.credential_id = null
   showNewCred.value = false
+}
+
+// ── Inline Group Creation ──────────────────────────────────
+const showNewGroup = ref(false)
+const newGroupName = ref('')
+const savingGroup = ref(false)
+const groupError = ref('')
+
+async function createGroup(form: { group_id: number | null }) {
+  if (!newGroupName.value) return
+  groupError.value = ''
+  savingGroup.value = true
+  try {
+    const res = await hostGroupApi.create({ name: newGroupName.value })
+    const created = res.data.data
+    groups.value.push(created)
+    form.group_id = created.id
+    showNewGroup.value = false
+    newGroupName.value = ''
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    groupError.value = err.response?.data?.message ?? '创建失败'
+  } finally {
+    savingGroup.value = false
+  }
+}
+
+// ── Edit Host ──────────────────────────────────────────────
+const showEditModal = ref(false)
+const editFormRef = ref()
+const editingHostId = ref<number>(0)
+const editSaving = ref(false)
+const editHostError = ref('')
+const showNewCredEdit = ref(false)
+const savingCredEdit = ref(false)
+const credErrorEdit = ref('')
+const newCredEdit = reactive({ name: '', username: '', secret: '' })
+
+const editForm = reactive({
+  name: '',
+  ip: '',
+  port: 22,
+  auth_type: 'password' as 'password' | 'key',
+  credential_id: null as number | null,
+  tags: [] as string[],
+  group_id: null as number | null,
+  jump_host_id: undefined as number | undefined,
+})
+
+const editRules = {
+  name: [{ required: true, message: '请输入主机名称', trigger: 'blur' }],
+  ip: [
+    { required: true, message: '请输入 IP 地址', trigger: 'blur' },
+    { pattern: /^(\d{1,3}\.){3}\d{1,3}$/, message: '请输入有效的 IP 地址', trigger: 'blur' },
+  ],
+  port: [{ required: true, type: 'number' as const, message: '请输入端口' }],
+  auth_type: [{ required: true, message: '请选择认证方式' }],
+  credential_id: [{ required: true, type: 'number' as const, message: '请选择或新建凭据' }],
+}
+
+const jumpHostOptionsForEdit = computed(() =>
+  hosts.value
+    .filter(h => h.id !== editingHostId.value)
+    .map(h => ({ label: `${h.name} (${h.ip})`, value: h.id }))
+)
+
+// 根据 editForm.auth_type 过滤凭据
+const filteredCredentialOptionsEdit = computed(() =>
+  credentials.value
+    .filter(c => c.type === editForm.auth_type)
+    .map(c => ({ label: `${c.name} (${c.username})`, value: c.id }))
+)
+
+function onAuthTypeChangeEdit() {
+  editForm.credential_id = null
+  showNewCredEdit.value = false
+}
+
+async function createCredentialForEdit() {
+  if (!newCredEdit.name || !newCredEdit.username || !newCredEdit.secret) return
+  credErrorEdit.value = ''
+  savingCredEdit.value = true
+  try {
+    const res = await credentialApi.create({
+      name: newCredEdit.name,
+      type: editForm.auth_type,
+      username: newCredEdit.username,
+      secret: newCredEdit.secret,
+    })
+    const created = res.data.data
+    credentials.value.push(created)
+    editForm.credential_id = created.id
+    showNewCredEdit.value = false
+    newCredEdit.name = ''
+    newCredEdit.username = ''
+    newCredEdit.secret = ''
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    credErrorEdit.value = err.response?.data?.message ?? '创建失败'
+  } finally {
+    savingCredEdit.value = false
+  }
+}
+
+function openEditModal(host: Host) {
+  editingHostId.value = host.id
+  editForm.name = host.name
+  editForm.ip = host.ip
+  editForm.port = host.port
+  editForm.auth_type = host.auth_type as 'password' | 'key'
+  editForm.credential_id = host.credential_id
+  editForm.tags = [...(host.tags ?? [])]
+  editForm.group_id = host.group_id
+  editForm.jump_host_id = host.jump_host_id
+  editHostError.value = ''
+  showNewCredEdit.value = false
+  showNewGroup.value = false
+  newCredEdit.name = ''
+  newCredEdit.username = ''
+  newCredEdit.secret = ''
+  showEditModal.value = true
+}
+
+async function submitEditHost() {
+  try {
+    await editFormRef.value?.validate()
+  } catch {
+    return
+  }
+  if (!editForm.credential_id) {
+    editHostError.value = '请选择或新建凭据'
+    return
+  }
+  editSaving.value = true
+  editHostError.value = ''
+  try {
+    await hostApi.update(editingHostId.value, {
+      name: editForm.name,
+      ip: editForm.ip,
+      port: editForm.port,
+      auth_type: editForm.auth_type,
+      credential_id: editForm.credential_id,
+      tags: editForm.tags,
+      group_id: editForm.group_id,
+      jump_host_id: editForm.jump_host_id,
+    })
+    showEditModal.value = false
+    await loadHosts()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    editHostError.value = err.response?.data?.message ?? '保存失败'
+  } finally {
+    editSaving.value = false
+  }
 }
 
 async function loadHosts() {
@@ -289,8 +611,10 @@ function openAddModal() {
   addForm.credential_id = null
   addForm.tags = []
   addForm.group_id = null
+  addForm.jump_host_id = undefined
   hostError.value = ''
   showNewCred.value = false
+  showNewGroup.value = false
   newCred.name = ''
   newCred.username = ''
   newCred.secret = ''
@@ -319,6 +643,7 @@ async function submitAddHost() {
       status: 1,
       tags: addForm.tags,
       group_id: addForm.group_id,
+      jump_host_id: addForm.jump_host_id,
     })
     showAddModal.value = false
     await loadHosts()

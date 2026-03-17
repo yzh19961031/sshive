@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sshive/sshive/internal/ai"
 	"github.com/sshive/sshive/internal/audit"
 	"github.com/sshive/sshive/internal/auth"
 	"github.com/sshive/sshive/internal/config"
@@ -140,6 +141,11 @@ func main() {
 	// SFTP
 	sftpH := sftpmodule.NewHandler()
 	authed.GET("/ws/sftp/:hostId", auth.RequirePermission("sftp:access"), sftpH.Connect)
+
+	// AI Shell
+	aiSvc := ai.NewService()
+	aiH := ai.NewHandler(aiSvc)
+	authed.POST("/ai/shell", aiH.Shell)
 
 	// Static files (frontend SPA)
 	distFS, err := fs.Sub(web.Static, "dist")

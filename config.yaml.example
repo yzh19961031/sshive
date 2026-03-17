@@ -9,3 +9,9 @@ encrypt_key: "<32字节随机密钥的base64>"
 cast_dir: "/data/sshive/cast"
 jwt_secret: "<JWT签名密钥>"
 port: 8080
+
+ai:
+  provider: openai              # anthropic | openai（兼容 DeepSeek、Ollama 等）
+  api_key: "sk-..."
+  model: "deepseek-chat"        # 或 gpt-4o-mini / claude-haiku-4-5-20251001
+  base_url: "https://api.deepseek.com/v1"  # 留空则使用 OpenAI 官方地址

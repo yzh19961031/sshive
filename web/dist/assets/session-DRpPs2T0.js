@@ -1,0 +1,5 @@
+<<<<<<<< HEAD:web/dist/assets/session-Dl38hJ8g.js
+import{A as o}from"./index-Dv6C9tUl.js";const n={list:s=>o.get("/sessions",{params:s}),getLogs:(s,e)=>o.get(`/sessions/${s}/logs`,{params:e}),getCommands:(s,e)=>o.get(`/sessions/${s}/commands`,{params:e}),getReplayUrl:s=>{const e=localStorage.getItem("token")??"";return`/api/sessions/${s}/replay?token=${encodeURIComponent(e)}`},listAllCommands:s=>o.get("/commands",{params:s})};export{n as s};
+========
+import{A as o}from"./index-CXRqOo_J.js";const n={list:s=>o.get("/sessions",{params:s}),getLogs:(s,e)=>o.get(`/sessions/${s}/logs`,{params:e}),getCommands:(s,e)=>o.get(`/sessions/${s}/commands`,{params:e}),getReplayUrl:s=>{const e=localStorage.getItem("token")??"";return`/api/sessions/${s}/replay?token=${encodeURIComponent(e)}`},listAllCommands:s=>o.get("/commands",{params:s})};export{n as s};
+>>>>>>>> feat/plan9-ai-shell:web/dist/assets/session-DRpPs2T0.js

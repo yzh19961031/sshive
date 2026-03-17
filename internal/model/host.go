@@ -43,5 +43,7 @@ type Host struct {
 	Status       int8      `gorm:"default:1;not null" json:"status"`
 	Tags         Tags      `gorm:"type:json" json:"tags"`
 	GroupID      *int64    `gorm:"index" json:"group_id"`
+	JumpHostID   *int64    `gorm:"index" json:"jump_host_id"`
+	JumpHost     *Host     `gorm:"foreignKey:JumpHostID" json:"jump_host,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }

@@ -43,6 +43,10 @@
           style="width:150px"
           @update:value="applyTerminalTheme"
         />
+        <button class="ai-toggle-btn" :class="{ active: aiPanelOpen }"
+          @click="aiPanelOpen = !aiPanelOpen" title="AI Shell 助手">
+          ✦ AI
+        </button>
       </div>
     </div>
 
@@ -57,51 +61,91 @@
       @select="handleCtxSelect"
     />
 
-    <!-- 分屏终端区域 -->
-    <div class="terminal-area" :class="`split-${splitCount}`">
-      <div v-for="idx in splitCount" :key="idx - 1"
-        :class="['split-cell', (idx - 1) === activeSplitIdx && 'focused']"
-        @mousedown="onSplitCellClick(idx - 1)">
+    <!-- 分屏终端区域 + AI 面板 -->
+    <div class="terminal-wrapper">
+      <div class="terminal-area" :class="`split-${splitCount}`">
+        <div v-for="idx in splitCount" :key="idx - 1"
+          :class="['split-cell', (idx - 1) === activeSplitIdx && 'focused']"
+          @mousedown="onSplitCellClick(idx - 1)">
 
-        <!-- 分屏格标题栏 -->
-        <div class="split-header" @mousedown.stop>
-          <div v-if="splitTabIds[idx - 1]"
-            :class="['split-dot', getSplitTabConnected(idx - 1) ? 'online' : 'offline']" />
-          <span class="split-name">{{ getSplitTabName(idx - 1) }}</span>
-          <div class="split-header-actions">
-            <!-- 换会话按钮 -->
-            <div class="split-picker-wrap">
-              <button class="split-hdr-btn"
-                :title="`切换此分屏的会话（当前：${getSplitTabName(idx - 1)}）`"
-                @click.stop="togglePicker(idx - 1)">⇄</button>
-              <!-- 会话选择下拉 -->
-              <div v-if="pickerOpen[idx - 1]" class="split-picker" @click.stop>
-                <div class="picker-title">选择会话</div>
-                <div v-if="store.tabs.length === 0" class="picker-empty">暂无会话，请先点 ＋</div>
-                <div v-for="tab in store.tabs" :key="tab.id"
-                  :class="['picker-item', tab.id === splitTabIds[idx - 1] && 'current']"
-                  @click="pickFromHeader(idx - 1, tab.id)">
-                  <div :class="['picker-dot', tab.connected ? 'online' : 'offline']" />
-                  <span>{{ tab.name }}</span>
-                  <span v-if="tab.id === splitTabIds[idx - 1]" class="picker-check">✓</span>
+          <!-- 分屏格标题栏 -->
+          <div class="split-header" @mousedown.stop>
+            <div v-if="splitTabIds[idx - 1]"
+              :class="['split-dot', getSplitTabConnected(idx - 1) ? 'online' : 'offline']" />
+            <span class="split-name">{{ getSplitTabName(idx - 1) }}</span>
+            <div class="split-header-actions">
+              <!-- 换会话按钮 -->
+              <div class="split-picker-wrap">
+                <button class="split-hdr-btn"
+                  :title="`切换此分屏的会话（当前：${getSplitTabName(idx - 1)}）`"
+                  @click.stop="togglePicker(idx - 1)">⇄</button>
+                <!-- 会话选择下拉 -->
+                <div v-if="pickerOpen[idx - 1]" class="split-picker" @click.stop>
+                  <div class="picker-title">选择会话</div>
+                  <div v-if="store.tabs.length === 0" class="picker-empty">暂无会话，请先点 ＋</div>
+                  <div v-for="tab in store.tabs" :key="tab.id"
+                    :class="['picker-item', tab.id === splitTabIds[idx - 1] && 'current']"
+                    @click="pickFromHeader(idx - 1, tab.id)">
+                    <div :class="['picker-dot', tab.connected ? 'online' : 'offline']" />
+                    <span>{{ tab.name }}</span>
+                    <span v-if="tab.id === splitTabIds[idx - 1]" class="picker-check">✓</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- xterm 挂载容器 -->
-        <div class="split-pane"
-          :ref="(el: any) => { if (el) splitCells[idx - 1] = el }">
-        </div>
-
-        <!-- 空分屏占位（绝对定位覆盖 pane） -->
-        <div v-if="!splitTabIds[idx - 1]" class="split-placeholder">
-          <div class="placeholder-inner">
-            <span class="placeholder-icon">⌨</span>
-            <span>点击 <b>⇄</b> 选择会话</span>
-            <span>或点击上方标签页分配</span>
+          <!-- xterm 挂载容器 -->
+          <div class="split-pane"
+            :ref="(el: any) => { if (el) splitCells[idx - 1] = el }">
           </div>
+
+          <!-- 空分屏占位（绝对定位覆盖 pane） -->
+          <div v-if="!splitTabIds[idx - 1]" class="split-placeholder">
+            <div class="placeholder-inner">
+              <span class="placeholder-icon">⌨</span>
+              <span>点击 <b>⇄</b> 选择会话</span>
+              <span>或点击上方标签页分配</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI 侧边栏 -->
+      <div v-if="aiPanelOpen" class="ai-panel">
+        <div class="ai-panel-header">
+          <span>✦ AI Shell 助手</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button v-if="aiMessages.length" class="ai-clear-btn" @click="clearHistory" title="清除对话">清除</button>
+            <button class="ai-close" @click="aiPanelOpen = false">×</button>
+          </div>
+        </div>
+        <!-- 对话历史 -->
+        <div class="ai-history" ref="aiHistoryEl">
+          <div v-for="(msg, i) in aiMessages" :key="i" :class="['ai-msg', `ai-msg-${msg.role}`]">
+            <div class="ai-msg-label">{{ msg.role === 'user' ? '你' : 'AI' }}</div>
+            <pre class="ai-code">{{ msg.content }}</pre>
+            <button v-if="msg.role === 'assistant'" class="ai-insert-btn" @click="insertCommand(msg.content)">
+              插入终端
+            </button>
+          </div>
+          <!-- 正在流式输出 -->
+          <div v-if="aiStreamingContent || aiLoading" class="ai-msg ai-msg-assistant">
+            <div class="ai-msg-label">AI</div>
+            <pre class="ai-code">{{ aiStreamingContent }}<span v-if="aiLoading" class="ai-cursor">▌</span></pre>
+          </div>
+        </div>
+        <div class="ai-input-row">
+          <textarea
+            v-model="aiPrompt"
+            class="ai-textarea"
+            placeholder="描述你想做的操作…&#10;例：找出占用磁盘最大的10个目录"
+            rows="3"
+            @keydown.ctrl.enter="askAI"
+          />
+          <button class="ai-send-btn" :disabled="aiLoading" @click="askAI">
+            {{ aiLoading ? '生成中…' : '生成命令' }}
+          </button>
         </div>
       </div>
     </div>
@@ -138,6 +182,7 @@ import { useAuthStore } from '@/stores/auth'
 import { hostApi } from '@/api/host'
 import { useTerminalThemeStore } from '@/stores/terminalTheme'
 import { useTerminalStore, type TermTab } from '@/stores/terminal'
+import { streamShellCommand, type AIMessage } from '@/api/ai'
 
 const auth = useAuthStore()
 const termTheme = useTerminalThemeStore()
@@ -166,6 +211,56 @@ function togglePicker(idx: number) {
 }
 function closeAllPickers() {
   pickerOpen.value = [false, false, false, false]
+}
+
+// ── AI Shell 状态 ─────────────────────────────────────────
+const aiPanelOpen = ref(false)
+const aiPrompt = ref('')
+const aiLoading = ref(false)
+const aiMessages = ref<AIMessage[]>([])
+const aiStreamingContent = ref('')
+const aiHistoryEl = ref<HTMLElement>()
+
+function scrollAIToBottom() {
+  nextTick(() => { if (aiHistoryEl.value) aiHistoryEl.value.scrollTop = aiHistoryEl.value.scrollHeight })
+}
+
+async function askAI() {
+  if (!aiPrompt.value.trim() || aiLoading.value) return
+  const userMsg: AIMessage = { role: 'user', content: aiPrompt.value.trim() }
+  aiMessages.value.push(userMsg)
+  aiPrompt.value = ''
+  aiStreamingContent.value = ''
+  aiLoading.value = true
+  await streamShellCommand({
+    messages: aiMessages.value,
+    onChunk: (text) => { aiStreamingContent.value += text; scrollAIToBottom() },
+    onDone: () => {
+      if (aiStreamingContent.value) {
+        aiMessages.value.push({ role: 'assistant', content: aiStreamingContent.value })
+        aiStreamingContent.value = ''
+      }
+      aiLoading.value = false
+    },
+    onError: (err) => {
+      aiMessages.value.push({ role: 'assistant', content: `错误：${err}` })
+      aiStreamingContent.value = ''
+      aiLoading.value = false
+    },
+  })
+}
+
+function insertCommand(cmd: string) {
+  const tabId = splitTabIds.value[activeSplitIdx.value]
+  const tab = tabId ? store.getTab(tabId) : null
+  if (tab?.ws?.readyState === WebSocket.OPEN) {
+    tab.ws.send(cmd.trim())
+  }
+}
+
+function clearHistory() {
+  aiMessages.value = []
+  aiStreamingContent.value = ''
 }
 
 // ── split-cell DOM 引用 ───────────────────────────────────
@@ -205,10 +300,16 @@ function handleCtxSelect(key: string) {
 }
 
 // ── 主题 ────────────────────────────────────────────────
+function syncXtermBgVar() {
+  const bg = termTheme.current().theme.background ?? '#1e1e1e'
+  document.documentElement.style.setProperty('--xterm-actual-bg', bg)
+}
+
 function applyTerminalTheme(id: string) {
   termTheme.apply(id)
   const newTheme = termTheme.current().theme
   Object.values(splitXterms).forEach(({ term }) => { term.options.theme = newTheme })
+  syncXtermBgVar()
 }
 
 // ── 主机选择器 ───────────────────────────────────────────
@@ -446,6 +547,7 @@ async function processPendingSSH() {
 }
 
 onMounted(async () => {
+  syncXtermBgVar()
   await restoreExistingTabs()
   await processPendingSSH()
 })
@@ -462,7 +564,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.terminal-page { display: flex; flex-direction: column; height: 100%; background: var(--terminal-bg); }
+.terminal-page { display: flex; flex-direction: column; height: 100%; background: var(--xterm-actual-bg, var(--terminal-bg)); }
 
 /* ── Tab bar ── */
 .tab-bar {
@@ -533,7 +635,7 @@ onUnmounted(() => {
 
 /* ── 终端区域 Grid ── */
 .terminal-area {
-  flex: 1; overflow: hidden; background: var(--terminal-bg);
+  flex: 1; overflow: hidden; background: var(--xterm-actual-bg, var(--terminal-bg));
   display: grid; gap: 2px;
 }
 .terminal-area.split-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
@@ -544,6 +646,7 @@ onUnmounted(() => {
 .split-cell {
   display: flex; flex-direction: column; overflow: hidden; position: relative;
   border: 1px solid transparent; transition: border-color 0.15s;
+  background: var(--xterm-actual-bg, var(--terminal-bg));
 }
 .split-cell.focused {
   border-color: color-mix(in srgb, var(--accent) 60%, transparent);
@@ -605,7 +708,12 @@ onUnmounted(() => {
 }
 
 /* ── 分屏 pane（xterm 容器） ── */
-.split-pane { flex: 1; overflow: hidden; }
+.split-pane {
+  flex: 1; overflow: hidden;
+  background: var(--xterm-actual-bg, var(--terminal-bg));
+}
+.split-pane :deep(.xterm) { height: 100%; }
+.split-pane :deep(.xterm-viewport) { overflow-y: hidden !important; }
 
 /* ── 空分屏占位 ── */
 .split-placeholder {
@@ -630,4 +738,79 @@ onUnmounted(() => {
 .picker-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
 .picker-name { font-size: 13px; color: var(--text-primary); flex: 1; }
 .picker-ip { font-size: 12px; color: var(--text-secondary); }
+
+/* ── terminal-wrapper ── */
+.terminal-wrapper { display: flex; flex: 1; overflow: hidden; }
+.terminal-wrapper .terminal-area { flex: 1; }
+
+/* ── AI 侧边栏 ── */
+.ai-panel {
+  width: 300px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: color-mix(in srgb, var(--terminal-bg) 90%, #000);
+  border-left: 1px solid color-mix(in srgb, var(--terminal-fg) 12%, transparent);
+}
+.ai-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; font-size: 13px; font-weight: 600;
+  color: var(--accent);
+  border-bottom: 1px solid color-mix(in srgb, var(--terminal-fg) 10%, transparent);
+  flex-shrink: 0;
+}
+.ai-close { background: none; border: none; color: inherit; cursor: pointer; font-size: 16px; padding: 0; }
+.ai-clear-btn {
+  background: none; border: 1px solid color-mix(in srgb, var(--terminal-fg) 20%, transparent);
+  color: color-mix(in srgb, var(--terminal-fg) 50%, transparent);
+  border-radius: 3px; padding: 1px 6px; cursor: pointer; font-size: 11px;
+}
+.ai-clear-btn:hover { border-color: var(--danger); color: var(--danger); }
+.ai-history { flex: 1; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 10px; }
+.ai-msg { display: flex; flex-direction: column; gap: 4px; }
+.ai-msg-label { font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--terminal-fg) 40%, transparent); }
+.ai-msg-user .ai-msg-label { color: var(--accent); }
+.ai-msg-user .ai-code { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.ai-code {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--terminal-fg); white-space: pre-wrap; word-break: break-all;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  padding: 8px 10px; border-radius: 4px; margin: 0;
+}
+.ai-cursor { animation: blink 1s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.ai-insert-btn {
+  margin-top: 8px; width: 100%;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 4px; padding: 6px; cursor: pointer; font-size: 12px;
+}
+.ai-insert-btn:hover { opacity: 0.85; }
+.ai-input-row {
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--terminal-fg) 10%, transparent);
+  flex-shrink: 0;
+}
+.ai-textarea {
+  width: 100%; resize: none; font-size: 12px; box-sizing: border-box;
+  background: color-mix(in srgb, var(--terminal-fg) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--terminal-fg) 18%, transparent);
+  border-radius: 4px; padding: 6px 8px; color: var(--terminal-fg);
+  font-family: inherit;
+}
+.ai-textarea:focus { outline: none; border-color: var(--accent); }
+.ai-send-btn {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 4px; padding: 5px; cursor: pointer; font-size: 12px;
+}
+.ai-send-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.ai-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ai-toggle-btn {
+  background: transparent; border: 1px solid color-mix(in srgb, var(--terminal-fg) 20%, transparent);
+  color: color-mix(in srgb, var(--terminal-fg) 55%, transparent);
+  border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 11px;
+  font-weight: 600; transition: all 0.15s; flex-shrink: 0;
+}
+.ai-toggle-btn:hover, .ai-toggle-btn.active {
+  border-color: var(--accent); color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
 </style>
