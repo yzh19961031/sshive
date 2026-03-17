@@ -117,6 +117,24 @@ func (h *Handler) Query(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
 }
 
+// ListQueryLogs GET /api/db-query-logs
+func (h *Handler) ListQueryLogs(c *gin.Context) {
+	tenantID := auth.GetTenantID(c.Request.Context())
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	serverID, _ := strconv.ParseInt(c.Query("db_server_id"), 10, 64)
+	userID, _ := strconv.ParseInt(c.Query("user_id"), 10, 64)
+	startTime := c.Query("start_time")
+	endTime := c.Query("end_time")
+
+	list, total, err := h.repo.ListQueryLogs(tenantID, serverID, userID, startTime, endTime, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"list": list, "total": total}})
+}
+
 // Databases GET /api/db-servers/:id/databases
 func (h *Handler) Databases(c *gin.Context) {
 	tenantID := auth.GetTenantID(c.Request.Context())

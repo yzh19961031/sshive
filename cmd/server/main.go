@@ -133,6 +133,7 @@ func main() {
 	authed.POST("/db-servers/:id/query", auth.RequirePermission("db:write"), dbH.Query)
 	authed.GET("/db-servers/:id/databases", auth.RequirePermission("db:read"), dbH.Databases)
 	authed.GET("/db-servers/:id/databases/:db/tables", auth.RequirePermission("db:read"), dbH.Tables)
+	authed.GET("/db-query-logs", auth.RequirePermission("audit:view"), dbH.ListQueryLogs)
 
 	// WebSSH
 	sshH := sshmodule.NewHandler()
