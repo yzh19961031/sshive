@@ -25,6 +25,7 @@ var rolePermissions = map[string][]string{
 	},
 	"auditor": {
 		"audit:view",
+		"db:read", // 用于审计页加载服务器下拉列表
 	},
 }
 
