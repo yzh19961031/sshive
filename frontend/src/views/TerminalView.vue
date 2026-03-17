@@ -209,6 +209,11 @@ function applyTerminalTheme(id: string) {
   termTheme.apply(id)
   const newTheme = termTheme.current().theme
   Object.values(splitXterms).forEach(({ term }) => { term.options.theme = newTheme })
+  // 同步 split-pane 背景，避免 xterm 行高不整除时露出 CSS 背景色
+  Object.keys(splitXterms).forEach(k => {
+    const cell = splitCells[Number(k)]
+    if (cell) cell.style.background = newTheme.background ?? ''
+  })
 }
 
 // ── 主机选择器 ───────────────────────────────────────────
@@ -320,6 +325,9 @@ async function mountXtermToSplit(idx: number) {
   }
   fit.fit()
   term.focus()
+
+  // 同步背景色，避免 xterm 行高余量露出 CSS 变量背景
+  cell.style.background = termTheme.current().theme.background ?? ''
 
   const ro = new ResizeObserver(() => splitXterms[idx]?.fit.fit())
   ro.observe(cell)
@@ -606,6 +614,8 @@ onUnmounted(() => {
 
 /* ── 分屏 pane（xterm 容器） ── */
 .split-pane { flex: 1; overflow: hidden; }
+.split-pane :deep(.xterm) { height: 100%; }
+.split-pane :deep(.xterm-viewport) { overflow-y: hidden !important; }
 
 /* ── 空分屏占位 ── */
 .split-placeholder {

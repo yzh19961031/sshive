@@ -24,6 +24,7 @@ type CreateReq struct {
 	CredentialID int64      `json:"credential_id" binding:"required"`
 	Tags         model.Tags `json:"tags"`
 	GroupID      *int64     `json:"group_id"`
+	JumpHostID   *int64     `json:"jump_host_id"`
 }
 
 type UpdateReq struct {
@@ -34,6 +35,7 @@ type UpdateReq struct {
 	CredentialID int64      `json:"credential_id" binding:"required"`
 	Tags         model.Tags `json:"tags"`
 	GroupID      *int64     `json:"group_id"`
+	JumpHostID   *int64     `json:"jump_host_id"`
 }
 
 func (s *Service) Create(tenantID int64, req CreateReq) (*model.Host, error) {
@@ -51,6 +53,7 @@ func (s *Service) Create(tenantID int64, req CreateReq) (*model.Host, error) {
 		Status:       1,
 		Tags:         req.Tags,
 		GroupID:      req.GroupID,
+		JumpHostID:   req.JumpHostID,
 	}
 	if err := s.repo.Create(h); err != nil {
 		return nil, fmt.Errorf("create host: %w", err)
@@ -73,6 +76,7 @@ func (s *Service) Update(tenantID, id int64, req UpdateReq) (*model.Host, error)
 	h.CredentialID = req.CredentialID
 	h.Tags = req.Tags
 	h.GroupID = req.GroupID
+	h.JumpHostID = req.JumpHostID
 	if err := s.repo.Update(h); err != nil {
 		return nil, fmt.Errorf("update host: %w", err)
 	}
