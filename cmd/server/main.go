@@ -147,6 +147,7 @@ func main() {
 	aiSvc := ai.NewService()
 	aiH := ai.NewHandler(aiSvc)
 	authed.POST("/ai/shell", aiH.Shell)
+	authed.POST("/ai/sql", auth.RequirePermission("db:read"), aiH.SQL)
 
 	// Static files (frontend SPA)
 	distFS, err := fs.Sub(web.Static, "dist")

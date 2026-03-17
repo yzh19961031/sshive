@@ -24,7 +24,6 @@
         <div v-else-if="loadingDbs" class="tree-empty">加载中…</div>
         <template v-else>
           <div v-for="db in currentDbs" :key="db">
-            <!-- 数据库行 -->
             <div
               class="db-row"
               :class="{ selected: selectedDb === db }"
@@ -34,7 +33,6 @@
               <span class="db-icon">🗄</span>
               <span class="db-name">{{ db }}</span>
             </div>
-            <!-- 表列表（内联展开） -->
             <div v-if="expandedDb === db" class="table-list">
               <div v-if="loadingTables" class="tree-empty" style="padding-left:32px">加载中…</div>
               <div
@@ -52,59 +50,106 @@
       </div>
     </div>
 
-    <!-- 拖拽分割线 -->
-    <div class="resize-handle" @mousedown="onDragStart" />
+    <!-- 侧边栏拖拽分割线 -->
+    <div class="resize-handle" @mousedown="onSidebarDragStart" />
 
-    <!-- 右侧主区域 -->
-    <div class="db-main">
-      <!-- 工具栏 -->
-      <div class="editor-toolbar">
-        <span v-if="selectedDb" class="ctx-badge">
-          {{ activeSrv?.name }} › {{ selectedDb }}
-        </span>
-        <button class="run-btn" :disabled="running" @click="runQuery">
-          {{ running ? '执行中…' : '▶ 执行  Ctrl+Enter' }}
-        </button>
-        <span v-if="lastResult" class="result-info">
-          {{ lastResult.total }} 行{{ lastResult.total >= 1000 ? '（已截断至 1000）' : '' }}
-        </span>
-      </div>
-
-      <!-- CodeMirror 编辑器 -->
-      <div ref="editorEl" class="sql-editor" />
-
-      <!-- 结果表格 -->
-      <div class="result-area">
-        <div v-if="queryError" class="query-error">{{ queryError }}</div>
-        <n-data-table
-          v-else-if="lastResult"
-          :columns="resultColumns"
-          :data="tableData"
-          :max-height="280"
-          size="small"
-          :scroll-x="lastResult.columns.length * 120"
-        />
-      </div>
-
-      <!-- 查询历史折叠面板 -->
-      <div class="history-panel">
-        <div class="history-header" @click="historyOpen = !historyOpen">
-          <span>查询历史 ({{ history.length }})</span>
-          <span>{{ historyOpen ? '▾' : '▸' }}</span>
+    <!-- 右侧区域（编辑器 + AI 面板） -->
+    <div class="db-right">
+      <div class="db-main">
+        <!-- 工具栏 -->
+        <div class="editor-toolbar">
+          <span v-if="selectedDb" class="ctx-badge">
+            {{ activeSrv?.name }} › {{ selectedDb }}
+          </span>
+          <button class="run-btn" :disabled="running" @click="runQuery">
+            {{ running ? '执行中…' : '▶ 执行  Ctrl+Enter' }}
+          </button>
+          <span v-if="lastResult" class="result-info">
+            {{ lastResult.total }} 行{{ lastResult.total >= 1000 ? '（已截断至 1000）' : '' }}
+          </span>
+          <button
+            class="ai-toggle-btn"
+            :class="{ active: aiPanelOpen }"
+            @click="aiPanelOpen = !aiPanelOpen"
+            title="AI SQL 助手"
+          >✦ AI</button>
         </div>
-        <div v-if="historyOpen" class="history-list">
-          <div
-            v-for="(h, i) in history"
-            :key="i"
-            class="history-item"
-            @click="fillFromHistory(h)"
-          >
-            <span class="history-sql">{{ h.sql.slice(0, 80) }}</span>
-            <span class="history-meta">
-              {{ h.database }} · {{ h.durationMs }}ms · {{ h.error ? '❌' : h.rowsReturned + '行' }}
-            </span>
+
+        <!-- CodeMirror 编辑器（高度可拖拽） -->
+        <div ref="editorEl" class="sql-editor" :style="{ height: editorHeight + 'px' }" />
+
+        <!-- 编辑器/结果区拖拽分割线 -->
+        <div class="editor-resize-handle" @mousedown="onEditorDragStart" />
+
+        <!-- 结果表格 -->
+        <div class="result-area">
+          <div v-if="queryError" class="query-error">{{ queryError }}</div>
+          <n-data-table
+            v-else-if="lastResult"
+            :columns="resultColumns"
+            :data="tableData"
+            :max-height="resultAreaHeight"
+            size="small"
+            :scroll-x="lastResult.columns.length * 120"
+          />
+        </div>
+
+        <!-- 查询历史折叠面板 -->
+        <div class="history-panel">
+          <div class="history-header" @click="historyOpen = !historyOpen">
+            <span>查询历史 ({{ history.length }})</span>
+            <span>{{ historyOpen ? '▾' : '▸' }}</span>
           </div>
-          <div v-if="history.length === 0" class="tree-empty">暂无历史</div>
+          <div v-if="historyOpen" class="history-list">
+            <div
+              v-for="(h, i) in history"
+              :key="i"
+              class="history-item"
+              @click="fillFromHistory(h)"
+            >
+              <span class="history-sql">{{ h.sql.slice(0, 80) }}</span>
+              <span class="history-meta">
+                {{ h.database }} · {{ h.durationMs }}ms · {{ h.error ? '❌' : h.rowsReturned + '行' }}
+              </span>
+            </div>
+            <div v-if="history.length === 0" class="tree-empty">暂无历史</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI SQL 助手面板 -->
+      <div v-if="aiPanelOpen" class="ai-panel">
+        <div class="ai-panel-header">
+          <span>✦ AI SQL 助手</span>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button v-if="aiMessages.length" class="ai-clear-btn" @click="clearAiHistory" title="清除对话">清除</button>
+            <button class="ai-close" @click="aiPanelOpen = false">×</button>
+          </div>
+        </div>
+        <div class="ai-history" ref="aiHistoryEl">
+          <div v-for="(msg, i) in aiMessages" :key="i" :class="['ai-msg', `ai-msg-${msg.role}`]">
+            <div class="ai-msg-label">{{ msg.role === 'user' ? '你' : 'AI' }}</div>
+            <pre class="ai-code">{{ msg.content }}</pre>
+            <button v-if="msg.role === 'assistant'" class="ai-insert-btn" @click="insertToEditor(msg.content)">
+              插入编辑器
+            </button>
+          </div>
+          <div v-if="aiStreamingContent || aiLoading" class="ai-msg ai-msg-assistant">
+            <div class="ai-msg-label">AI</div>
+            <pre class="ai-code">{{ aiStreamingContent }}<span v-if="aiLoading" class="ai-cursor">▌</span></pre>
+          </div>
+        </div>
+        <div class="ai-input-row">
+          <textarea
+            v-model="aiPrompt"
+            class="ai-textarea"
+            placeholder="描述你想查询的内容…"
+            rows="2"
+            @keydown.ctrl.enter="askAI"
+          />
+          <button class="ai-send-btn" :disabled="aiLoading" @click="askAI">
+            {{ aiLoading ? '生成中…' : '生成 SQL' }}
+          </button>
         </div>
       </div>
     </div>
@@ -131,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { NModal, NForm, NFormItem, NInput, NInputNumber, NButton, NDataTable, NSelect } from 'naive-ui'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
@@ -139,14 +184,15 @@ import { sql } from '@codemirror/lang-sql'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { defaultKeymap } from '@codemirror/commands'
 import { dbApi, type DBServer, type QueryResult, type QueryHistory } from '@/api/db'
+import { streamSQLCommand, type AIMessage } from '@/api/ai'
 
 // ── 状态 ──────────────────────────────────────────────
 const servers     = ref<DBServer[]>([])
 const activeSrvId = ref<number | null>(null)
 const selectedDb  = ref<string>('')
 const expandedDb  = ref<string>('')
-const dbMap       = ref<Record<number, string[]>>({})     // srvId -> db[]
-const tableMap    = ref<Record<string, string[]>>({})      // "srvId:db" -> table[]
+const dbMap       = ref<Record<number, string[]>>({})
+const tableMap    = ref<Record<string, string[]>>({})
 const loadingDbs  = ref(false)
 const loadingTables = ref(false)
 
@@ -161,12 +207,27 @@ const showAddModal = ref(false)
 const editorEl     = ref<HTMLElement>()
 let editorView: EditorView | null = null
 
-// 拖拽
+// 侧边栏拖拽
 const SIDEBAR_KEY = 'db-sidebar-width'
 const sidebarWidth = ref(220)
-let dragging = false
-let dragStartX = 0
-let dragStartWidth = 0
+let sidebarDragging = false
+let sidebarDragStartX = 0
+let sidebarDragStartWidth = 0
+
+// 编辑器高度拖拽
+const EDITOR_HEIGHT_KEY = 'db-editor-height'
+const editorHeight = ref(150)
+let editorDragging = false
+let editorDragStartY = 0
+let editorDragStartH = 0
+
+// AI 面板
+const aiPanelOpen = ref(false)
+const aiPrompt = ref('')
+const aiLoading = ref(false)
+const aiMessages = ref<AIMessage[]>([])
+const aiStreamingContent = ref('')
+const aiHistoryEl = ref<HTMLElement>()
 
 const addForm = ref({
   name: '', type: 'mysql', host: '', port: 3306,
@@ -198,17 +259,20 @@ const tableData = computed(() =>
   })) ?? []
 )
 
+// 结果区最大高度跟随编辑器高度变化（大约）
+const resultAreaHeight = computed(() => Math.max(100, 400 - editorHeight.value))
+
 // ── 生命周期 ──────────────────────────────────────────
 onMounted(async () => {
-  // 恢复侧边栏宽度
   const saved = localStorage.getItem(SIDEBAR_KEY)
   if (saved) sidebarWidth.value = parseInt(saved, 10)
 
-  // 加载服务器列表
+  const savedEH = localStorage.getItem(EDITOR_HEIGHT_KEY)
+  if (savedEH) editorHeight.value = parseInt(savedEH, 10)
+
   const res = await dbApi.list()
   servers.value = res.data.data ?? []
 
-  // 初始化 CodeMirror
   const state = EditorState.create({
     doc: 'SELECT * FROM ',
     extensions: [
@@ -219,7 +283,7 @@ onMounted(async () => {
         { key: 'Ctrl-Enter', run: () => { runQuery(); return true } },
       ]),
       EditorView.theme({
-        '&': { height: '150px' },
+        '&': { height: '100%' },
         '.cm-scroller': { overflow: 'auto' }
       }),
     ],
@@ -321,24 +385,104 @@ function fillFromHistory(h: QueryHistory) {
   })
 }
 
-// ── 拖拽调宽 ──────────────────────────────────────────
-function onDragStart(e: MouseEvent) {
-  dragging = true
-  dragStartX = e.clientX
-  dragStartWidth = sidebarWidth.value
+// ── 拖拽（侧边栏 + 编辑器高度） ──────────────────────
+function onSidebarDragStart(e: MouseEvent) {
+  sidebarDragging = true
+  sidebarDragStartX = e.clientX
+  sidebarDragStartWidth = sidebarWidth.value
+  e.preventDefault()
+}
+
+function onEditorDragStart(e: MouseEvent) {
+  editorDragging = true
+  editorDragStartY = e.clientY
+  editorDragStartH = editorHeight.value
   e.preventDefault()
 }
 
 function onDragMove(e: MouseEvent) {
-  if (!dragging) return
-  const next = Math.min(480, Math.max(160, dragStartWidth + e.clientX - dragStartX))
-  sidebarWidth.value = next
+  if (sidebarDragging) {
+    const next = Math.min(480, Math.max(160, sidebarDragStartWidth + e.clientX - sidebarDragStartX))
+    sidebarWidth.value = next
+  }
+  if (editorDragging) {
+    const next = Math.min(400, Math.max(80, editorDragStartH + e.clientY - editorDragStartY))
+    editorHeight.value = next
+  }
 }
 
 function onDragEnd() {
-  if (!dragging) return
-  dragging = false
-  localStorage.setItem(SIDEBAR_KEY, String(sidebarWidth.value))
+  if (sidebarDragging) {
+    sidebarDragging = false
+    localStorage.setItem(SIDEBAR_KEY, String(sidebarWidth.value))
+  }
+  if (editorDragging) {
+    editorDragging = false
+    localStorage.setItem(EDITOR_HEIGHT_KEY, String(editorHeight.value))
+  }
+}
+
+// ── AI SQL 助手 ───────────────────────────────────────
+function scrollAiToBottom() {
+  nextTick(() => { if (aiHistoryEl.value) aiHistoryEl.value.scrollTop = aiHistoryEl.value.scrollHeight })
+}
+
+async function askAI() {
+  if (!aiPrompt.value.trim() || aiLoading.value) return
+  const userMsg: AIMessage = { role: 'user', content: aiPrompt.value.trim() }
+  aiMessages.value.push(userMsg)
+  aiPrompt.value = ''
+  aiStreamingContent.value = ''
+  aiLoading.value = true
+
+  const dbType = activeSrv.value ? (activeSrv.value.type === 'mysql' ? 'MySQL' : 'PostgreSQL') : ''
+  // 确保当前选中数据库的表列表已加载
+  if (activeSrvId.value && selectedDb.value) {
+    const key = `${activeSrvId.value}:${selectedDb.value}`
+    if (!tableMap.value[key]) {
+      try {
+        const r = await dbApi.tables(activeSrvId.value, selectedDb.value)
+        tableMap.value[key] = r.data.data ?? []
+      } catch { /* ignore */ }
+    }
+  }
+  const tables = activeSrvId.value && selectedDb.value
+    ? (tableMap.value[`${activeSrvId.value}:${selectedDb.value}`] ?? [])
+    : []
+  let dbContext = dbType
+  if (selectedDb.value) dbContext += ` · 数据库: ${selectedDb.value}`
+  if (tables.length) dbContext += `\n可用的表: ${tables.join(', ')}`
+
+  await streamSQLCommand({
+    messages: aiMessages.value,
+    dbContext,
+    onChunk: (text) => { aiStreamingContent.value += text; scrollAiToBottom() },
+    onDone: () => {
+      if (aiStreamingContent.value) {
+        aiMessages.value.push({ role: 'assistant', content: aiStreamingContent.value })
+        aiStreamingContent.value = ''
+      }
+      aiLoading.value = false
+      scrollAiToBottom()
+    },
+    onError: (err) => {
+      aiMessages.value.push({ role: 'assistant', content: `错误：${err}` })
+      aiStreamingContent.value = ''
+      aiLoading.value = false
+    },
+  })
+}
+
+function insertToEditor(content: string) {
+  if (!editorView) return
+  editorView.dispatch({
+    changes: { from: 0, to: editorView.state.doc.length, insert: content.trim() }
+  })
+}
+
+function clearAiHistory() {
+  aiMessages.value = []
+  aiStreamingContent.value = ''
 }
 
 // ── 添加服务器 ────────────────────────────────────────
@@ -368,7 +512,6 @@ async function addServer() {
   background: var(--bg-elevated);
 }
 
-/* 服务器 Tab 栏 */
 .srv-tabs {
   display: flex; flex-wrap: wrap; gap: 2px;
   padding: 6px 8px; border-bottom: 1px solid var(--border);
@@ -398,7 +541,6 @@ async function addServer() {
   font-size: 16px; color: var(--accent); padding: 0 4px; line-height: 1;
 }
 
-/* 数据库 / 表树 */
 .db-tree {
   flex: 1; overflow-y: auto; overflow-x: hidden;
 }
@@ -432,13 +574,17 @@ async function addServer() {
 }
 .table-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── 拖拽分割线 ── */
+/* ── 侧边栏拖拽分割线 ── */
 .resize-handle {
   width: 4px; flex-shrink: 0; cursor: ew-resize;
-  background: var(--border);
-  transition: background 0.15s;
+  background: var(--border); transition: background 0.15s;
 }
 .resize-handle:hover { background: var(--accent); }
+
+/* ── 右侧区域（编辑器 + AI 面板） ── */
+.db-right {
+  flex: 1; display: flex; flex-direction: row; overflow: hidden;
+}
 
 /* ── 主区域 ── */
 .db-main {
@@ -459,8 +605,24 @@ async function addServer() {
 }
 .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .result-info { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+.ai-toggle-btn {
+  background: none; border: 1px solid var(--border);
+  border-radius: 4px; padding: 3px 10px; cursor: pointer;
+  font-size: 11px; color: var(--text-secondary);
+}
+.ai-toggle-btn:hover, .ai-toggle-btn.active {
+  color: var(--accent); border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
 
-.sql-editor { flex-shrink: 0; border-bottom: 1px solid var(--border); }
+.sql-editor { flex-shrink: 0; border-bottom: 1px solid var(--border); overflow: hidden; }
+
+/* 编辑器/结果区拖拽分割线 */
+.editor-resize-handle {
+  height: 4px; flex-shrink: 0; cursor: ns-resize;
+  background: var(--border); transition: background 0.15s;
+}
+.editor-resize-handle:hover { background: var(--accent); }
 
 .result-area { flex: 1; overflow: auto; padding: 8px; min-height: 0; }
 .query-error {
@@ -490,4 +652,62 @@ async function addServer() {
 .history-item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .history-sql { color: var(--text-primary); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .history-meta { color: var(--text-secondary); font-size: 10px; }
+
+/* ── AI 面板 ── */
+.ai-panel {
+  width: 280px; flex-shrink: 0; display: flex; flex-direction: column;
+  border-left: 1px solid var(--border); background: var(--bg-elevated);
+  overflow: hidden;
+}
+.ai-panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  font-size: 12px; font-weight: 600; color: var(--text-primary);
+}
+.ai-clear-btn {
+  background: none; border: 1px solid var(--border); border-radius: 3px;
+  font-size: 10px; color: var(--text-secondary); cursor: pointer; padding: 1px 6px;
+}
+.ai-clear-btn:hover { color: var(--danger); border-color: var(--danger); }
+.ai-close {
+  background: none; border: none; cursor: pointer;
+  font-size: 16px; color: var(--text-secondary); line-height: 1;
+}
+.ai-close:hover { color: var(--text-primary); }
+.ai-history {
+  flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px;
+}
+.ai-msg { display: flex; flex-direction: column; gap: 4px; }
+.ai-msg-label { font-size: 10px; font-weight: 600; color: var(--text-secondary); }
+.ai-msg-user .ai-msg-label { color: var(--accent); }
+.ai-code {
+  margin: 0; padding: 6px 8px; border-radius: 4px; font-size: 11px;
+  font-family: monospace; white-space: pre-wrap; word-break: break-all;
+  background: var(--bg-primary); color: var(--text-primary); line-height: 1.5;
+}
+.ai-cursor { animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.ai-insert-btn {
+  align-self: flex-start; background: var(--accent); color: #fff;
+  border: none; border-radius: 3px; font-size: 10px; padding: 2px 8px;
+  cursor: pointer; margin-top: 2px;
+}
+.ai-insert-btn:hover { opacity: 0.85; }
+.ai-input-row {
+  padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.ai-textarea {
+  resize: none; border: 1px solid var(--border); border-radius: 4px;
+  padding: 6px 8px; font-size: 12px; font-family: inherit;
+  background: var(--bg-primary); color: var(--text-primary);
+  outline: none; width: 100%; box-sizing: border-box;
+}
+.ai-textarea:focus { border-color: var(--accent); }
+.ai-send-btn {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 4px; padding: 5px 12px; cursor: pointer;
+  font-size: 12px; align-self: flex-end;
+}
+.ai-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
