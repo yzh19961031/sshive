@@ -160,6 +160,8 @@ func (s *Service) ListDatabases(tenantID, serverID int64) ([]string, error) {
 		q = "SHOW DATABASES"
 	case DBTypePostgres:
 		q = "SELECT datname FROM pg_database WHERE datistemplate = false"
+	default:
+		return nil, fmt.Errorf("unsupported db type: %s", srv.Type)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
@@ -201,6 +203,8 @@ func (s *Service) ListTables(tenantID, serverID int64, database string) ([]strin
 		q = "SHOW TABLES"
 	case DBTypePostgres:
 		q = "SELECT tablename FROM pg_tables WHERE schemaname='public'"
+	default:
+		return nil, fmt.Errorf("unsupported db type: %s", srv.Type)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)

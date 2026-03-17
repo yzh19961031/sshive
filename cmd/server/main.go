@@ -126,12 +126,12 @@ func main() {
 	dbRepo := dbclient.NewRepo(db.DB)
 	dbSvc := dbclient.NewService(dbRepo)
 	dbH := dbclient.NewHandler(dbSvc, dbRepo)
-	authed.GET("/db-servers", dbH.List)
-	authed.POST("/db-servers", dbH.Create)
-	authed.DELETE("/db-servers/:id", dbH.Delete)
-	authed.POST("/db-servers/:id/query", dbH.Query)
-	authed.GET("/db-servers/:id/databases", dbH.Databases)
-	authed.GET("/db-servers/:id/databases/:db/tables", dbH.Tables)
+	authed.GET("/db-servers", auth.RequirePermission("db:read"), dbH.List)
+	authed.POST("/db-servers", auth.RequirePermission("db:write"), dbH.Create)
+	authed.DELETE("/db-servers/:id", auth.RequirePermission("db:write"), dbH.Delete)
+	authed.POST("/db-servers/:id/query", auth.RequirePermission("db:write"), dbH.Query)
+	authed.GET("/db-servers/:id/databases", auth.RequirePermission("db:read"), dbH.Databases)
+	authed.GET("/db-servers/:id/databases/:db/tables", auth.RequirePermission("db:read"), dbH.Tables)
 
 	// WebSSH
 	sshH := sshmodule.NewHandler()

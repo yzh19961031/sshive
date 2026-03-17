@@ -4,6 +4,7 @@ package dbclient
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sshive/sshive/internal/auth"
@@ -36,7 +37,7 @@ func (h *Handler) List(c *gin.Context) {
 
 type CreateReq struct {
 	Name     string `json:"name"     binding:"required"`
-	Type     string `json:"type"     binding:"required"` // mysql/postgres
+	Type     string `json:"type"     binding:"required,oneof=mysql postgres"` // mysql/postgres
 	Host     string `json:"host"     binding:"required"`
 	Port     int    `json:"port"     binding:"required"`
 	Username string `json:"username" binding:"required"`
@@ -73,7 +74,11 @@ func (h *Handler) Create(c *gin.Context) {
 // Delete DELETE /api/db-servers/:id
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := auth.GetTenantID(c.Request.Context())
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid id"})
+		return
+	}
 	if err := h.repo.Delete(tenantID, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -88,7 +93,11 @@ type QueryReq struct {
 // Query POST /api/db-servers/:id/query
 func (h *Handler) Query(c *gin.Context) {
 	tenantID := auth.GetTenantID(c.Request.Context())
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid id"})
+		return
+	}
 	var req QueryReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
@@ -96,7 +105,11 @@ func (h *Handler) Query(c *gin.Context) {
 	}
 	result, err := h.svc.Query(tenantID, id, req.SQL)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		if strings.Contains(err.Error(), "不支持多语句") {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
@@ -105,7 +118,11 @@ func (h *Handler) Query(c *gin.Context) {
 // Databases GET /api/db-servers/:id/databases
 func (h *Handler) Databases(c *gin.Context) {
 	tenantID := auth.GetTenantID(c.Request.Context())
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid id"})
+		return
+	}
 	dbs, err := h.svc.ListDatabases(tenantID, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
@@ -117,7 +134,11 @@ func (h *Handler) Databases(c *gin.Context) {
 // Tables GET /api/db-servers/:id/databases/:db/tables
 func (h *Handler) Tables(c *gin.Context) {
 	tenantID := auth.GetTenantID(c.Request.Context())
-	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid id"})
+		return
+	}
 	database := c.Param("db")
 	tables, err := h.svc.ListTables(tenantID, id, database)
 	if err != nil {
