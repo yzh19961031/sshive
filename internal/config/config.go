@@ -18,10 +18,18 @@ type Config struct {
 		Password string `yaml:"password"`
 	} `yaml:"redis"`
 
-	EncryptKey string `yaml:"encrypt_key"`
-	CastDir    string `yaml:"cast_dir"`
-	JWTSecret  string `yaml:"jwt_secret"`
-	Port       int    `yaml:"port"`
+	AI         AIConfig `yaml:"ai"`
+	EncryptKey string   `yaml:"encrypt_key"`
+	CastDir    string   `yaml:"cast_dir"`
+	JWTSecret  string   `yaml:"jwt_secret"`
+	Port       int      `yaml:"port"`
+}
+
+type AIConfig struct {
+	Provider string `yaml:"provider"` // anthropic | openai (default: anthropic)
+	APIKey   string `yaml:"api_key"`
+	Model    string `yaml:"model"`
+	BaseURL  string `yaml:"base_url"` // optional, for OpenAI-compatible endpoints
 }
 
 var C Config
