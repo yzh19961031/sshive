@@ -16,6 +16,7 @@ import (
 	"github.com/sshive/sshive/internal/credential"
 	"github.com/sshive/sshive/internal/dangerrule"
 	"github.com/sshive/sshive/internal/db"
+	"github.com/sshive/sshive/internal/dbclient"
 	"github.com/sshive/sshive/internal/host"
 	"github.com/sshive/sshive/internal/hostgroup"
 	sftpmodule "github.com/sshive/sshive/internal/sftp"
@@ -120,6 +121,17 @@ func main() {
 	statsH := stats.NewHandler()
 	// /stats 返回当前租户的聚合统计，登录即可访问（无需特定权限）
 	authed.GET("/stats", statsH.Get)
+
+	// DB Client
+	dbRepo := dbclient.NewRepo(db.DB)
+	dbSvc := dbclient.NewService(dbRepo)
+	dbH := dbclient.NewHandler(dbSvc, dbRepo)
+	authed.GET("/db-servers", dbH.List)
+	authed.POST("/db-servers", dbH.Create)
+	authed.DELETE("/db-servers/:id", dbH.Delete)
+	authed.POST("/db-servers/:id/query", dbH.Query)
+	authed.GET("/db-servers/:id/databases", dbH.Databases)
+	authed.GET("/db-servers/:id/databases/:db/tables", dbH.Tables)
 
 	// WebSSH
 	sshH := sshmodule.NewHandler()

@@ -41,6 +41,15 @@ func (s *Service) encryptionKey() ([]byte, error) {
 	return encrypt.KeyFromBase64(config.C.EncryptKey)
 }
 
+// EncryptPassword 对明文密码进行 AES-256-GCM 加密，返回 base64 密文
+func (s *Service) EncryptPassword(password string) (string, error) {
+	key, err := s.encryptionKey()
+	if err != nil {
+		return "", err
+	}
+	return encrypt.Encrypt(key, password)
+}
+
 func (s *Service) openDB(srv *model.DBServer) (*sql.DB, error) {
 	key, err := s.encryptionKey()
 	if err != nil {
