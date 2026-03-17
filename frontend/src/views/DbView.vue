@@ -159,7 +159,7 @@ async function toggleDb(srvId: number, db: string) {
 
 function fillSelectAll(_srvId: number | null, db: string, table: string) {
   if (!editorView) return
-  const sqlStr = `SELECT * FROM \`${db}\`.\`${table}\` LIMIT 100`
+  const sqlStr = `SELECT * FROM ${db}.${table} LIMIT 100`
   editorView.dispatch({
     changes: { from: 0, to: editorView.state.doc.length, insert: sqlStr }
   })
@@ -181,10 +181,15 @@ async function runQuery() {
 }
 
 async function addServer() {
-  await dbApi.create(addForm.value as any)
-  showAddModal.value = false
-  const res = await dbApi.list()
-  servers.value = res.data.data ?? []
+  try {
+    await dbApi.create(addForm.value as any)
+    showAddModal.value = false
+    addForm.value = { name: '', type: 'mysql', host: '', port: 3306, username: '', password: '', database: '' }
+    const res = await dbApi.list()
+    servers.value = res.data.data ?? []
+  } catch (e: any) {
+    alert(e.response?.data?.message ?? '添加失败')
+  }
 }
 </script>
 

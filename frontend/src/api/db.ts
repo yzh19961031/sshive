@@ -18,14 +18,14 @@ export interface QueryResult {
 }
 
 export const dbApi = {
-  list: () => http.get<{ code: number; data: DBServer[] }>('/api/db-servers'),
+  list: () => http.get<{ code: number; data: DBServer[] }>('/db-servers'),
   create: (data: Omit<DBServer, 'id'> & { password: string }) =>
-    http.post<{ data: DBServer }>('/api/db-servers', data),
-  delete: (id: number) => http.delete(`/api/db-servers/${id}`),
+    http.post<{ data: DBServer }>('/db-servers', data),
+  delete: (id: number) => http.delete(`/db-servers/${id}`),
   query: (id: number, sql: string) =>
-    http.post<{ data: QueryResult }>(`/api/db-servers/${id}/query`, { sql }),
+    http.post<{ data: QueryResult }>(`/db-servers/${id}/query`, { sql }),
   databases: (id: number) =>
-    http.get<{ data: string[] }>(`/api/db-servers/${id}/databases`),
+    http.get<{ data: string[] }>(`/db-servers/${id}/databases`),
   tables: (id: number, db: string) =>
-    http.get<{ data: string[] }>(`/api/db-servers/${id}/databases/${db}/tables`),
+    http.get<{ data: string[] }>(`/db-servers/${id}/databases/${db}/tables`),
 }
