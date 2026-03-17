@@ -12,16 +12,20 @@ var rolePermissions = map[string][]string{
 	"super_admin": {
 		"host:connect", "host:manage", "sftp:access",
 		"audit:view", "user:manage", "rule:manage", "tenant:manage",
+		"db:read", "db:write",
 	},
 	"tenant_admin": {
 		"host:connect", "host:manage", "sftp:access",
 		"audit:view", "user:manage", "rule:manage",
+		"db:read", "db:write",
 	},
 	"operator": {
 		"host:connect", "sftp:access", "audit:view",
+		"db:read", "db:write",
 	},
 	"auditor": {
 		"audit:view",
+		"db:read", // 用于审计页加载服务器下拉列表
 	},
 }
 

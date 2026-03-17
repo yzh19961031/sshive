@@ -22,5 +22,9 @@ func Migrate() error {
 		&model.Session{},
 		&model.SessionLog{},
 		&model.SessionCommand{},
+		// Plan 10 new models
+		&model.DBServer{},
+		// Plan 11 new models
+		&model.DBQueryLog{},
 	)
 }

@@ -100,12 +100,14 @@ const navGroups = [
       { path: '/hosts',       icon: '⬡',  label: '主机列表' },
       { path: '/host-groups', icon: '◫',  label: '主机分组' },
       { path: '/terminal',  icon: '⌨',  label: 'Terminal' },
+      { path: '/db',        icon: '🗄',  label: '数据库' },
     ],
   },
   {
     label: '安全',
     items: [
       { path: '/audit/sessions',  icon: '📋', label: '审计日志' },
+      { path: '/db-audit',        icon: '📋', label: 'DB 查询审计' },
       { path: '/settings/rules',  icon: '⚠', label: '高危规则' },
     ],
   },

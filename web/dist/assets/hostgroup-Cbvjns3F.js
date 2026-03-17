@@ -1,0 +1,1 @@
+import{A as o}from"./index-C5l8tqEC.js";const e={list:()=>o.get("/host-groups"),create:t=>o.post("/host-groups",t),update:(t,s)=>o.put(`/host-groups/${t}`,s),delete:t=>o.delete(`/host-groups/${t}`)};export{e as h};
