@@ -11,7 +11,6 @@ import (
 
 	"github.com/sshive/sshive/internal/audit"
 	"github.com/sshive/sshive/internal/auth"
-	"github.com/sshive/sshive/internal/credential"
 	"github.com/sshive/sshive/internal/host"
 	"github.com/sshive/sshive/pkg/middleware"
 )
@@ -45,14 +44,12 @@ var upgrader = websocket.Upgrader{
 type Handler struct {
 	auditSvc *audit.Service
 	hostSvc  *host.Service
-	credSvc  *credential.Service
 }
 
 func NewHandler() *Handler {
 	return &Handler{
 		auditSvc: audit.NewService(),
 		hostSvc:  host.NewService(),
-		credSvc:  credential.NewService(),
 	}
 }
 
@@ -66,15 +63,9 @@ func (h *Handler) Connect(c *gin.Context) {
 		return
 	}
 
-	hostInfo, err := h.hostSvc.GetByID(tenantID, hostID)
+	hwj, err := h.hostSvc.GetWithJumpCredential(tenantID, hostID)
 	if err != nil {
 		middleware.NotFound(c, "host not found")
-		return
-	}
-
-	sshUser, sshSecret, err := h.credSvc.DecryptSecret(tenantID, hostInfo.CredentialID)
-	if err != nil {
-		middleware.InternalError(c, "load credential failed")
 		return
 	}
 
@@ -100,7 +91,11 @@ func (h *Handler) Connect(c *gin.Context) {
 	}
 
 	clientIP := c.ClientIP()
-	sess := NewSession(hostInfo, sshUser, sshSecret, tenantID, userID, clientIP, ws, h.auditSvc)
+	sess := NewSession(
+		hwj.Host, hwj.SSHUser, hwj.SSHSecret,
+		hwj.JumpHost, hwj.JumpSSHUser, hwj.JumpSSHSecret,
+		tenantID, userID, clientIP, ws, h.auditSvc,
+	)
 
 	if err := sess.Run(width, height); err != nil {
 		slog.Info("webssh session ended", "host_id", hostID, "err", err)

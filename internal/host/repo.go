@@ -35,7 +35,9 @@ func (r *Repo) List(tenantID int64, page, pageSize int) ([]model.Host, int64, er
 
 func (r *Repo) GetByID(tenantID, id int64) (*model.Host, error) {
 	var h model.Host
-	if err := db.DB.Where("id = ? AND tenant_id = ?", id, tenantID).First(&h).Error; err != nil {
+	if err := db.DB.Preload("JumpHost").
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		First(&h).Error; err != nil {
 		return nil, err
 	}
 	return &h, nil
