@@ -3,15 +3,17 @@ package host
 import (
 	"fmt"
 
+	"github.com/sshive/sshive/internal/credential"
 	"github.com/sshive/sshive/internal/model"
 )
 
 type Service struct {
-	repo *Repo
+	repo    *Repo
+	credSvc *credential.Service
 }
 
 func NewService() *Service {
-	return &Service{repo: &Repo{}}
+	return &Service{repo: &Repo{}, credSvc: credential.NewService()}
 }
 
 type CreateReq struct {
@@ -93,4 +95,36 @@ func (s *Service) List(tenantID int64, page, pageSize int) ([]model.Host, int64,
 
 func (s *Service) GetByID(tenantID, id int64) (*model.Host, error) {
 	return s.repo.GetByID(tenantID, id)
+}
+
+type HostWithJump struct {
+	Host          *model.Host
+	SSHUser       string
+	SSHSecret     string
+	JumpHost      *model.Host
+	JumpSSHUser   string
+	JumpSSHSecret string
+}
+
+func (s *Service) GetWithJumpCredential(tenantID, hostID int64) (*HostWithJump, error) {
+	h, err := s.repo.GetByID(tenantID, hostID)
+	if err != nil {
+		return nil, fmt.Errorf("get host: %w", err)
+	}
+	user, secret, err := s.credSvc.DecryptSecret(tenantID, h.CredentialID)
+	if err != nil {
+		return nil, fmt.Errorf("credential: %w", err)
+	}
+	result := &HostWithJump{Host: h, SSHUser: user, SSHSecret: secret}
+
+	if h.JumpHost != nil {
+		jUser, jSecret, err := s.credSvc.DecryptSecret(tenantID, h.JumpHost.CredentialID)
+		if err != nil {
+			return nil, fmt.Errorf("jump host credential: %w", err)
+		}
+		result.JumpHost = h.JumpHost
+		result.JumpSSHUser = jUser
+		result.JumpSSHSecret = jSecret
+	}
+	return result, nil
 }
