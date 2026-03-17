@@ -18,10 +18,16 @@ type Config struct {
 		Password string `yaml:"password"`
 	} `yaml:"redis"`
 
-	EncryptKey string `yaml:"encrypt_key"`
-	CastDir    string `yaml:"cast_dir"`
-	JWTSecret  string `yaml:"jwt_secret"`
-	Port       int    `yaml:"port"`
+	AI         AIConfig `yaml:"ai"`
+	EncryptKey string   `yaml:"encrypt_key"`
+	CastDir    string   `yaml:"cast_dir"`
+	JWTSecret  string   `yaml:"jwt_secret"`
+	Port       int      `yaml:"port"`
+}
+
+type AIConfig struct {
+	APIKey string `yaml:"api_key"`
+	Model  string `yaml:"model"`
 }
 
 var C Config
