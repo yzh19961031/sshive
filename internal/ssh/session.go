@@ -26,42 +26,48 @@ type ResizeMsg struct {
 
 // Session 管理一个 WebSSH 会话的完整生命周期
 type Session struct {
-	host      *model.Host
-	sshUser   string
-	sshSecret string
-	tenantID  int64
-	userID    int64
-	clientIP  string
-	ws        *websocket.Conn
-	auditSvc  *audit.Service
+	host          *model.Host
+	sshUser       string
+	sshSecret     string
+	jumpHost      *model.Host
+	jumpSSHUser   string
+	jumpSSHSecret string
+	tenantID      int64
+	userID        int64
+	clientIP      string
+	ws            *websocket.Conn
+	auditSvc      *audit.Service
 }
 
 func NewSession(host *model.Host, sshUser, sshSecret string,
+	jumpHost *model.Host, jumpSSHUser, jumpSSHSecret string,
 	tenantID, userID int64, clientIP string,
 	ws *websocket.Conn, auditSvc *audit.Service) *Session {
 	return &Session{
-		host:      host,
-		sshUser:   sshUser,
-		sshSecret: sshSecret,
-		tenantID:  tenantID,
-		userID:    userID,
-		clientIP:  clientIP,
-		ws:        ws,
-		auditSvc:  auditSvc,
+		host:          host,
+		sshUser:       sshUser,
+		sshSecret:     sshSecret,
+		jumpHost:      jumpHost,
+		jumpSSHUser:   jumpSSHUser,
+		jumpSSHSecret: jumpSSHSecret,
+		tenantID:      tenantID,
+		userID:        userID,
+		clientIP:      clientIP,
+		ws:            ws,
+		auditSvc:      auditSvc,
 	}
 }
 
 // Run 建立 SSH 连接，开启 PTY，运行输入输出循环
 func (s *Session) Run(initWidth, initHeight int) error {
 	// 1. 建立 SSH 连接
-	cfg, err := s.buildSSHConfig()
+	cfg, err := s.buildSSHConfig(s.sshUser, s.sshSecret, s.host.AuthType)
 	if err != nil {
 		return fmt.Errorf("build ssh config: %w", err)
 	}
-	addr := fmt.Sprintf("%s:%d", s.host.IP, s.host.Port)
-	sshConn, err := gossh.Dial("tcp", addr, cfg)
+	sshConn, err := s.dialTarget(cfg)
 	if err != nil {
-		return fmt.Errorf("ssh dial %s: %w", addr, err)
+		return fmt.Errorf("ssh dial: %w", err)
 	}
 	defer sshConn.Close()
 
@@ -194,19 +200,51 @@ func (s *Session) Run(initWidth, initHeight int) error {
 	return nil
 }
 
-func (s *Session) buildSSHConfig() (*gossh.ClientConfig, error) {
+func (s *Session) dialTarget(targetCfg *gossh.ClientConfig) (*gossh.Client, error) {
+	targetAddr := fmt.Sprintf("%s:%d", s.host.IP, s.host.Port)
+
+	if s.jumpHost == nil {
+		return gossh.Dial("tcp", targetAddr, targetCfg)
+	}
+
+	jumpCfg, err := s.buildSSHConfig(s.jumpSSHUser, s.jumpSSHSecret, s.jumpHost.AuthType)
+	if err != nil {
+		return nil, fmt.Errorf("jump ssh config: %w", err)
+	}
+	jumpAddr := fmt.Sprintf("%s:%d", s.jumpHost.IP, s.jumpHost.Port)
+	jumpClient, err := gossh.Dial("tcp", jumpAddr, jumpCfg)
+	if err != nil {
+		return nil, fmt.Errorf("dial jump host %s: %w", jumpAddr, err)
+	}
+
+	conn, err := jumpClient.Dial("tcp", targetAddr)
+	if err != nil {
+		jumpClient.Close()
+		return nil, fmt.Errorf("jump dial target %s: %w", targetAddr, err)
+	}
+
+	ncc, chans, reqs, err := gossh.NewClientConn(conn, targetAddr, targetCfg)
+	if err != nil {
+		conn.Close()
+		jumpClient.Close()
+		return nil, fmt.Errorf("ssh handshake: %w", err)
+	}
+	return gossh.NewClient(ncc, chans, reqs), nil
+}
+
+func (s *Session) buildSSHConfig(user, secret, authType string) (*gossh.ClientConfig, error) {
 	var authMethod gossh.AuthMethod
-	if s.host.AuthType == "key" {
-		signer, err := gossh.ParsePrivateKey([]byte(s.sshSecret))
+	if authType == "key" {
+		signer, err := gossh.ParsePrivateKey([]byte(secret))
 		if err != nil {
 			return nil, fmt.Errorf("parse private key: %w", err)
 		}
 		authMethod = gossh.PublicKeys(signer)
 	} else {
-		authMethod = gossh.Password(s.sshSecret)
+		authMethod = gossh.Password(secret)
 	}
 	return &gossh.ClientConfig{
-		User:            s.sshUser,
+		User:            user,
 		Auth:            []gossh.AuthMethod{authMethod},
 		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
 		Timeout:         15 * time.Second,
