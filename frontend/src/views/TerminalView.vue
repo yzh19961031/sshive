@@ -205,15 +205,16 @@ function handleCtxSelect(key: string) {
 }
 
 // ── 主题 ────────────────────────────────────────────────
+function syncXtermBgVar() {
+  const bg = termTheme.current().theme.background ?? '#1e1e1e'
+  document.documentElement.style.setProperty('--xterm-actual-bg', bg)
+}
+
 function applyTerminalTheme(id: string) {
   termTheme.apply(id)
   const newTheme = termTheme.current().theme
   Object.values(splitXterms).forEach(({ term }) => { term.options.theme = newTheme })
-  // 同步 split-pane 背景，避免 xterm 行高不整除时露出 CSS 背景色
-  Object.keys(splitXterms).forEach(k => {
-    const cell = splitCells[Number(k)]
-    if (cell) cell.style.background = newTheme.background ?? ''
-  })
+  syncXtermBgVar()
 }
 
 // ── 主机选择器 ───────────────────────────────────────────
@@ -325,9 +326,6 @@ async function mountXtermToSplit(idx: number) {
   }
   fit.fit()
   term.focus()
-
-  // 同步背景色，避免 xterm 行高余量露出 CSS 变量背景
-  cell.style.background = termTheme.current().theme.background ?? ''
 
   const ro = new ResizeObserver(() => splitXterms[idx]?.fit.fit())
   ro.observe(cell)
@@ -454,6 +452,7 @@ async function processPendingSSH() {
 }
 
 onMounted(async () => {
+  syncXtermBgVar()
   await restoreExistingTabs()
   await processPendingSSH()
 })
@@ -470,7 +469,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.terminal-page { display: flex; flex-direction: column; height: 100%; background: var(--terminal-bg); }
+.terminal-page { display: flex; flex-direction: column; height: 100%; background: var(--xterm-actual-bg, var(--terminal-bg)); }
 
 /* ── Tab bar ── */
 .tab-bar {
@@ -541,7 +540,7 @@ onUnmounted(() => {
 
 /* ── 终端区域 Grid ── */
 .terminal-area {
-  flex: 1; overflow: hidden; background: var(--terminal-bg);
+  flex: 1; overflow: hidden; background: var(--xterm-actual-bg, var(--terminal-bg));
   display: grid; gap: 2px;
 }
 .terminal-area.split-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
@@ -552,6 +551,7 @@ onUnmounted(() => {
 .split-cell {
   display: flex; flex-direction: column; overflow: hidden; position: relative;
   border: 1px solid transparent; transition: border-color 0.15s;
+  background: var(--xterm-actual-bg, var(--terminal-bg));
 }
 .split-cell.focused {
   border-color: color-mix(in srgb, var(--accent) 60%, transparent);
@@ -613,7 +613,10 @@ onUnmounted(() => {
 }
 
 /* ── 分屏 pane（xterm 容器） ── */
-.split-pane { flex: 1; overflow: hidden; }
+.split-pane {
+  flex: 1; overflow: hidden;
+  background: var(--xterm-actual-bg, var(--terminal-bg));
+}
 .split-pane :deep(.xterm) { height: 100%; }
 .split-pane :deep(.xterm-viewport) { overflow-y: hidden !important; }
 
