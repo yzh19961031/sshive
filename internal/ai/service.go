@@ -54,7 +54,7 @@ func NewService() *Service {
 	return svc
 }
 
-const systemPrompt = `你是一个 Linux 运维助手。用户会用自然语言描述想要做的操作，你需要返回对应的 Shell 命令。
+const shellSystemPrompt = `你是一个 Linux 运维助手。用户会用自然语言描述想要做的操作，你需要返回对应的 Shell 命令。
 
 规则：
 - 只返回命令本身，不要解释，不要 markdown 代码块
@@ -63,9 +63,18 @@ const systemPrompt = `你是一个 Linux 运维助手。用户会用自然语言
 - 根据用户提供的 OS 信息调整命令语法
 - 如果需求不明确，返回最常见的安全写法`
 
+const sqlSystemPrompt = `你是一个 SQL 数据库助手。用户会用自然语言描述查询需求，你需要返回可直接执行的 SQL 语句。
+
+规则：
+- 只返回 SQL 语句本身，不要解释，不要 markdown 代码块，不要注释
+- 只生成 SELECT 查询，不要生成 INSERT/UPDATE/DELETE/DROP 等写操作
+- 根据用户提供的数据库类型（MySQL 或 PostgreSQL）调整语法
+- 如果涉及多表，使用合适的 JOIN
+- 结果默认加 LIMIT 100 防止返回过多数据
+- 如果需求不明确，返回最合理的查询写法`
+
 // StreamShellCommand 流式返回 Shell 命令，支持多轮对话历史
 func (s *Service) StreamShellCommand(ctx context.Context, messages []Message, osInfo string, chunk chan<- string) error {
-	// 注入 OS 信息到第一条用户消息
 	if osInfo != "" && len(messages) > 0 {
 		msgs := make([]Message, len(messages))
 		copy(msgs, messages)
@@ -74,13 +83,29 @@ func (s *Service) StreamShellCommand(ctx context.Context, messages []Message, os
 	}
 	switch s.provider {
 	case "openai":
-		return s.streamOpenAI(ctx, messages, chunk)
+		return s.streamOpenAI(ctx, messages, shellSystemPrompt, chunk)
 	default:
-		return s.streamAnthropic(ctx, messages, chunk)
+		return s.streamAnthropic(ctx, messages, shellSystemPrompt, chunk)
 	}
 }
 
-func (s *Service) streamAnthropic(ctx context.Context, messages []Message, chunk chan<- string) error {
+// StreamSQLCommand 流式返回 SQL 查询，支持多轮对话历史
+func (s *Service) StreamSQLCommand(ctx context.Context, messages []Message, dbContext string, chunk chan<- string) error {
+	if dbContext != "" && len(messages) > 0 {
+		msgs := make([]Message, len(messages))
+		copy(msgs, messages)
+		msgs[0].Content = fmt.Sprintf("[数据库上下文: %s]\n\n%s", dbContext, msgs[0].Content)
+		messages = msgs
+	}
+	switch s.provider {
+	case "openai":
+		return s.streamOpenAI(ctx, messages, sqlSystemPrompt, chunk)
+	default:
+		return s.streamAnthropic(ctx, messages, sqlSystemPrompt, chunk)
+	}
+}
+
+func (s *Service) streamAnthropic(ctx context.Context, messages []Message, sysPrompt string, chunk chan<- string) error {
 	params := make([]anthropic.MessageParam, 0, len(messages))
 	for _, m := range messages {
 		if m.Role == "user" {
@@ -92,7 +117,7 @@ func (s *Service) streamAnthropic(ctx context.Context, messages []Message, chunk
 	stream := s.anthropicClient.Messages.NewStreaming(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.Model(s.model),
 		MaxTokens: 512,
-		System:    []anthropic.TextBlockParam{{Text: systemPrompt}},
+		System:    []anthropic.TextBlockParam{{Text: sysPrompt}},
 		Messages:  params,
 	})
 	for stream.Next() {
@@ -108,9 +133,9 @@ func (s *Service) streamAnthropic(ctx context.Context, messages []Message, chunk
 	return stream.Err()
 }
 
-func (s *Service) streamOpenAI(ctx context.Context, messages []Message, chunk chan<- string) error {
+func (s *Service) streamOpenAI(ctx context.Context, messages []Message, sysPrompt string, chunk chan<- string) error {
 	params := []openai.ChatCompletionMessageParamUnion{
-		openai.SystemMessage(systemPrompt),
+		openai.SystemMessage(sysPrompt),
 	}
 	for _, m := range messages {
 		if m.Role == "user" {
